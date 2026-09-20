@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { TranslationError, TranslationHttpError } from "../errors.ts";
 import { createOpenAiCompatibleClient, type FetchLike } from "./openai-compatible-client.ts";
+import { buildTranslationUserPayload } from "../prompts/user-payload.ts";
 import {
   MISSING_ID_JSON,
   SAMPLE_REQUEST,
@@ -47,7 +48,7 @@ test("sends the exact generic outbound payload and returns validated translation
     expect(String(body.messages[0].content)).toContain("Target language: ar");
     expect(body.messages[1]).toEqual({
       role: "user",
-      content: JSON.stringify({ items: SAMPLE_REQUEST.items }),
+      content: JSON.stringify(buildTranslationUserPayload(SAMPLE_REQUEST)),
     });
     expect(init.signal).toBeUndefined();
     return Response.json(completionEnvelope(VALID_TRANSLATIONS_JSON));

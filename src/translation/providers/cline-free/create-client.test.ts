@@ -31,8 +31,8 @@ test("thinking-disable matches the verified Cline payload", () => {
   expect(body).not.toHaveProperty("enable_thinking");
 });
 
-test("prefixes raw WorkOS tokens and leaves an existing prefix alone", () => {
-  expect(formatClineBearer(" raw-token ")).toBe("workos:raw-token");
+test("sends API keys unchanged and preserves explicit account-token prefixes", () => {
+  expect(formatClineBearer(" raw-token ")).toBe("raw-token");
   expect(formatClineBearer("workos:raw-token")).toBe("workos:raw-token");
   expect(formatClineBearer("WORKOS:raw-token")).toBe("WORKOS:raw-token");
 });
@@ -46,7 +46,7 @@ test("sends the verified Cline Free DeepSeek request with thinking disabled", as
     expect(url).toBe("https://api.cline.bot/api/v1/chat/completions");
     expect(init.redirect).toBe("error");
     const headers = new Headers(init.headers);
-    expect(headers.get("authorization")).toBe("Bearer workos:raw-token");
+    expect(headers.get("authorization")).toBe("Bearer raw-token");
     expect(headers.get("http-referer")).toBe(CLINE_FREE_HEADERS["HTTP-Referer"]);
     expect(headers.get("x-title")).toBe(CLINE_FREE_HEADERS["X-Title"]);
     expect(headers.get("x-is-multiroot")).toBe(CLINE_FREE_HEADERS["X-IS-MULTIROOT"]);
@@ -68,7 +68,7 @@ test("sends the verified Cline Free DeepSeek request with thinking disabled", as
   const outbound = client.buildOutbound(SAMPLE_REQUEST);
   expect(outbound.body.include_reasoning).toBe(true);
   expect(outbound.body.reasoning).toEqual({ effort: "none" });
-  expect(outbound.headers.Authorization).toBe("Bearer workos:raw-token");
+  expect(outbound.headers.Authorization).toBe("Bearer raw-token");
   const result = await client.translate(SAMPLE_REQUEST);
   expect(calls).toBe(1);
   expect(result.translations.map((row) => row.id)).toEqual(["greet", "score"]);

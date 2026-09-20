@@ -1,3 +1,4 @@
+import { protectRequest } from "../tokens/protected-request.ts";
 import { redactText, secretsFromApiKey } from "../diagnostics.ts";
 import { TranslationError, TranslationHttpError } from "../errors.ts";
 import { extractJsonValue, readCompletionContent, validateTranslations } from "../response.ts";
@@ -24,6 +25,24 @@ export async function postCompletion(
   options: TranslateOptions,
   deps: PostCompletionDependencies,
 ): Promise<TranslateResult> {
+  try {
+    return await postUnprotectedCompletion(settings, request, options, deps);
+  } catch (error) {
+    if (!(error instanceof TranslationError) || error.code !== "RESPONSE" ||
+        !error.message.includes("missing placeholders:") || request.items.length !== 1) throw error;
+    throwIfAborted(options.signal);
+    const protectedRequest = protectRequest(request);
+    const result = await postUnprotectedCompletion(settings, protectedRequest.request, options, deps);
+    return protectedRequest.restore(result);
+  }
+}
+
+async function postUnprotectedCompletion(
+  settings: OpenAiCompatibleSettings,
+  request: TranslateRequest,
+  options: TranslateOptions,
+  deps: PostCompletionDependencies,
+): Promise<TranslateResult> {
   const outbound = buildOutboundRequest(settings, request);
   const body = JSON.stringify(outbound.body);
   const secrets = secretsFromApiKey(settings.apiKey);
@@ -43,7 +62,8 @@ export async function postCompletion(
       });
       if (response.ok) {
         const payload: unknown = await readJson(response, secrets);
-        const content = readCompletionContent(payload);
+        const completion = settings.unwrapCompletion ? settings.unwrapCompletion(payload) : payload;
+        const content = readCompletionContent(completion);
         const translations = validateTranslations(extractJsonValue(content), request);
         return { translations };
       }

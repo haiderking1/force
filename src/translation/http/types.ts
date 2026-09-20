@@ -11,6 +11,7 @@ export type OpenAiCompatibleSettings = {
   readonly batchSize: number;
   readonly headers: Readonly<Record<string, string>>;
   readonly extraBody: Readonly<Record<string, unknown>>;
+  readonly unwrapCompletion?: (payload: unknown) => unknown;
   readonly finalizePayload?: (body: Record<string, unknown>) => Record<string, unknown>;
 };
 

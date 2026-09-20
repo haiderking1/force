@@ -1,4 +1,4 @@
-export const TRANSLATION_PROVIDERS = ["cline-free"] as const;
+export const TRANSLATION_PROVIDERS = ["cline-free", "cline", "cline-pass"] as const;
 
 export type TranslationProvider = (typeof TRANSLATION_PROVIDERS)[number];
 

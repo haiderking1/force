@@ -1,4 +1,7 @@
 import type { TranslateRequest } from "./types.ts";
+import { ARABIC_TRANSLATION_PROMPT } from "./prompts/arabic.ts";
+import { TRANSLATION_OUTPUT_CONTRACT } from "./prompts/output-contract.ts";
+import { buildTranslationUserPayload } from "./prompts/user-payload.ts";
 
 export type ChatMessage = {
   readonly role: "system" | "user";
@@ -6,22 +9,19 @@ export type ChatMessage = {
 };
 
 export function buildTranslationMessages(request: TranslateRequest): ChatMessage[] {
-  const placeholderLine =
-    request.placeholders.length === 0
-      ? "No placeholders are specified."
-      : `Preserve these placeholders exactly, with the same spelling and count: ${request.placeholders.join(", ")}`;
-
-  const system = [
+  const targetLine = `Target language: ${request.targetLanguage}`;
+  const genericSystem = [
     "You translate text into a specified target language.",
-    `Target language: ${request.targetLanguage}`,
-    placeholderLine,
-    "Keep every source id unchanged.",
-    'Return only JSON with this shape: {"translations":[{"id":"string","text":"string"}]}',
-    "Do not include explanations or markdown.",
+    targetLine,
+    TRANSLATION_OUTPUT_CONTRACT,
   ].join("\n");
+  const isArabic = /^(ar(?:[-_].*)?|arabic|العربية)$/i.test(request.targetLanguage.trim());
+  const system = isArabic
+    ? `${ARABIC_TRANSLATION_PROMPT}\n${targetLine}\n${TRANSLATION_OUTPUT_CONTRACT}`
+    : genericSystem;
 
   return [
     { role: "system", content: system },
-    { role: "user", content: JSON.stringify({ items: request.items }) },
+    { role: "user", content: JSON.stringify(buildTranslationUserPayload(request)) },
   ];
 }

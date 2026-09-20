@@ -25,6 +25,7 @@ export type TranslateOptions = {
 export type TranslationClient = {
   buildOutbound(request: TranslateRequest): OutboundRequest;
   translate(request: TranslateRequest, options?: TranslateOptions): Promise<TranslateResult>;
+  translateBatch(request: TranslateRequest, options?: TranslateOptions): Promise<TranslateResult>;
 };
 
 export type OutboundRequest = {

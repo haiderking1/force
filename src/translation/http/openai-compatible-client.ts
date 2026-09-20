@@ -15,11 +15,21 @@ export function createOpenAiCompatibleClient(
   const fetcher = deps.fetch ?? ((input, init) => fetch(input, init));
   const wait = deps.sleep ?? sleep;
 
+  const translateBatch = (
+    request: TranslateRequest,
+    options: TranslateOptions = {},
+  ): Promise<TranslateResult> => {
+    assertValidTranslateRequest(request);
+    return postCompletion(settings, request, options, { fetch: fetcher, sleep: wait });
+  };
+
   return {
     buildOutbound(request: TranslateRequest): OutboundRequest {
       assertValidTranslateRequest(request);
       return buildOutboundRequest(settings, request);
     },
+
+    translateBatch,
 
     async translate(request: TranslateRequest, options: TranslateOptions = {}): Promise<TranslateResult> {
       assertValidTranslateRequest(request);
@@ -28,8 +38,7 @@ export function createOpenAiCompatibleClient(
         options,
         workers: settings.workers,
         batchSize: settings.batchSize,
-        translateBatch: (batchRequest, batchOptions) =>
-          postCompletion(settings, batchRequest, batchOptions, { fetch: fetcher, sleep: wait }),
+        translateBatch,
       });
     },
   };

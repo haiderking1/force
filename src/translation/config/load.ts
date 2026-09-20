@@ -1,3 +1,5 @@
+import { CLINE_MODEL, CLINE_PROVIDER } from "../providers/cline/contract.ts";
+import { CLINE_BASE_URL, CLINE_DEFAULTS } from "../providers/cline-common/contract.ts";
 import { TranslationError } from "../errors.ts";
 import {
   MAX_BATCH_SIZE,
@@ -6,8 +8,6 @@ import {
   MIN_WORKERS,
 } from "../pool/settings.ts";
 import {
-  CLINE_FREE_BASE_URL,
-  CLINE_FREE_DEFAULTS,
   CLINE_FREE_MODEL,
   CLINE_FREE_PROVIDER,
 } from "../providers/cline-free/contract.ts";
@@ -19,6 +19,8 @@ import {
   type TranslationConfig,
   type TranslationProvider,
 } from "./schema.ts";
+
+import { CLINE_PASS_MODEL, CLINE_PASS_PROVIDER, isClinePassModel } from "../providers/cline-pass/contract.ts";
 
 const MODEL_PATTERN = /^[A-Za-z0-9_.:/-]+$/;
 const POSITIVE_INT = /^[1-9]\d*$/;
@@ -34,19 +36,25 @@ export function loadTranslationConfig(
 
   const providerRaw = readOptional(env[TRANSLATION_ENV.PROVIDER]) ?? CLINE_FREE_PROVIDER;
   const provider = parseProvider(providerRaw, issues);
-  const baseUrl = parseBaseUrl(readOptional(env[TRANSLATION_ENV.BASE_URL]) ?? CLINE_FREE_BASE_URL, issues);
-  const model = parseModel(readOptional(env[TRANSLATION_ENV.MODEL]) ?? CLINE_FREE_MODEL, issues);
+  const baseUrl = parseBaseUrl(readOptional(env[TRANSLATION_ENV.BASE_URL]) ?? CLINE_BASE_URL, issues);
+  const defaultModel = provider === CLINE_PASS_PROVIDER
+    ? CLINE_PASS_MODEL
+    : provider === CLINE_PROVIDER ? CLINE_MODEL : CLINE_FREE_MODEL;
+  const model = parseModel(readOptional(env[TRANSLATION_ENV.MODEL]) ?? defaultModel, issues);
+  if (provider === CLINE_PASS_PROVIDER && !isClinePassModel(model)) {
+    issues.push(`${TRANSLATION_ENV.MODEL} must use a cline-pass/ model id for cline-pass`);
+  }
   const apiKey = (env[TRANSLATION_ENV.API_KEY] ?? "").trim();
   if (requireApiKey && apiKey.length === 0) {
     issues.push(`${TRANSLATION_ENV.API_KEY} is required`);
   }
   const targetLanguage = parseTargetLanguage(
-    readOptional(env[TRANSLATION_ENV.TARGET_LANGUAGE]) ?? CLINE_FREE_DEFAULTS.targetLanguage,
+    readOptional(env[TRANSLATION_ENV.TARGET_LANGUAGE]) ?? CLINE_DEFAULTS.targetLanguage,
     issues,
   );
   const maxRetries = parseBoundedInt(
     env[TRANSLATION_ENV.MAX_RETRIES],
-    CLINE_FREE_DEFAULTS.maxRetries,
+    CLINE_DEFAULTS.maxRetries,
     TRANSLATION_ENV.MAX_RETRIES,
     0,
     10,
@@ -55,7 +63,7 @@ export function loadTranslationConfig(
   );
   const retryBackoffMs = parseBoundedInt(
     env[TRANSLATION_ENV.RETRY_BACKOFF_MS],
-    CLINE_FREE_DEFAULTS.retryBackoffMs,
+    CLINE_DEFAULTS.retryBackoffMs,
     TRANSLATION_ENV.RETRY_BACKOFF_MS,
     0,
     60_000,
@@ -64,7 +72,7 @@ export function loadTranslationConfig(
   );
   const workers = parseBoundedInt(
     env[TRANSLATION_ENV.WORKERS],
-    CLINE_FREE_DEFAULTS.workers,
+    CLINE_DEFAULTS.workers,
     TRANSLATION_ENV.WORKERS,
     MIN_WORKERS,
     MAX_WORKERS,
@@ -73,14 +81,14 @@ export function loadTranslationConfig(
   );
   const batchSize = parseBoundedInt(
     env[TRANSLATION_ENV.BATCH_SIZE],
-    CLINE_FREE_DEFAULTS.batchSize,
+    CLINE_DEFAULTS.batchSize,
     TRANSLATION_ENV.BATCH_SIZE,
     MIN_BATCH_SIZE,
     MAX_BATCH_SIZE,
     POSITIVE_INT,
     issues,
   );
-  const temperature = parseTemperature(env[TRANSLATION_ENV.TEMPERATURE], CLINE_FREE_DEFAULTS.temperature, issues);
+  const temperature = parseTemperature(env[TRANSLATION_ENV.TEMPERATURE], CLINE_DEFAULTS.temperature, issues);
 
   if (issues.length > 0) {
     throw new TranslationError("CONFIG", `Invalid translation configuration: ${issues.join("; ")}`);
@@ -125,16 +133,16 @@ function parseBaseUrl(value: string, issues: string[]): string {
     const url = new URL(value);
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       issues.push(`${TRANSLATION_ENV.BASE_URL} must be an http or https URL`);
-      return CLINE_FREE_BASE_URL;
+      return CLINE_BASE_URL;
     }
     if (url.username.length > 0 || url.password.length > 0) {
       issues.push(`${TRANSLATION_ENV.BASE_URL} must not include credentials`);
-      return CLINE_FREE_BASE_URL;
+      return CLINE_BASE_URL;
     }
     return `${url.origin}${url.pathname}`.replace(/\/+$/, "");
   } catch {
     issues.push(`${TRANSLATION_ENV.BASE_URL} must be an absolute URL`);
-    return CLINE_FREE_BASE_URL;
+    return CLINE_BASE_URL;
   }
 }
 
@@ -149,7 +157,7 @@ function parseModel(value: string, issues: string[]): string {
 function parseTargetLanguage(value: string, issues: string[]): string {
   if (value.length === 0) {
     issues.push(`${TRANSLATION_ENV.TARGET_LANGUAGE} must be non-empty`);
-    return CLINE_FREE_DEFAULTS.targetLanguage;
+    return CLINE_DEFAULTS.targetLanguage;
   }
   return value;
 }

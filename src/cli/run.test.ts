@@ -1,4 +1,7 @@
 import { expect, test } from "bun:test";
+import { mkdir, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { TRANSLATION_ENV } from "../translation/config/schema.ts";
 import type { FetchLike } from "../translation/http/openai-compatible-client.ts";
 import {
@@ -174,4 +177,99 @@ test("translate returns validated JSON through the CLI", async () => {
       { id: "score", text: "النتيجة: %s" },
     ],
   });
+});
+
+function extractedRecord(id: string, text: string, entryType = "StringTable") {
+  return {
+    archiveHeader: "/game/Win/Packs/Man_Trivial.~h",
+    archivePayload: "/game/Win/Packs/Man_Trivial.~p",
+    entryName: entryType === "StringTable" ? "stringtable/brutallegend" : "journal/foo",
+    entryType,
+    entryIndex: 1,
+    payloadOffset: 0,
+    storedSize: 1,
+    contentSize: 1,
+    recordId: id,
+    text,
+    sourceByteOffset: 8,
+    extra: {},
+  };
+}
+
+async function writeExtracted(records: unknown[]): Promise<{ input: string; out: string }> {
+  const dir = path.join(tmpdir(), `force-cli-file-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  await mkdir(dir, { recursive: true });
+  const input = path.join(dir, "strings.json");
+  await writeFile(input, `${JSON.stringify(records)}\n`);
+  return { input, out: path.join(dir, "out") };
+}
+
+test("file-mode plan prints counts and does not call fetch", async () => {
+  const io = capture();
+  let calls = 0;
+  const { input, out } = await writeExtracted([
+    extractedRecord("LINE001", "Press /Activate/"),
+    extractedRecord("LINE002", "Hello"),
+    extractedRecord("LINE001", "Press /Activate/", "JournalEntries"),
+  ]);
+  const code = await runCli(
+    ["translate", "--input", input, "--out", out, "--plan"],
+    { env: {}, fetch: async () => { calls += 1; return new Response("no"); }, ...io },
+  );
+  expect(code).toBe(0);
+  expect(calls).toBe(0);
+  expect(io.read().stdout).toContain("items 2");
+  expect(io.read().stdout).toContain("batches 1");
+  expect(io.read().stdout).toContain("workers 100");
+  expect(io.read().stdout).toContain("batchSize 50");
+  expect(io.read().stdout).toContain("/Activate/");
+  expect(io.read().stdout).toContain(path.join(out, "status.json"));
+});
+
+test("file-mode live translate persists batches through the CLI without a nested pool", async () => {
+  const io = capture();
+  const { input, out } = await writeExtracted([
+    extractedRecord("LINE001", "One"),
+    extractedRecord("LINE002", "Two"),
+    extractedRecord("LINE003", "Three"),
+  ]);
+  let calls = 0;
+  let maxItems = 0;
+  const fetchLike: FetchLike = async (_url, init) => {
+    calls += 1;
+    const items = itemsFromOutboundBody(init.body);
+    maxItems = Math.max(maxItems, items.length);
+    return Response.json(completionForItems(items));
+  };
+  const code = await runCli(
+    ["translate", "--input", input, "--out", out],
+    {
+      env: {
+        [TRANSLATION_ENV.API_KEY]: "raw-token",
+        [TRANSLATION_ENV.WORKERS]: "100",
+        [TRANSLATION_ENV.BATCH_SIZE]: "50",
+      },
+      fetch: fetchLike,
+      ...io,
+    },
+  );
+  expect(code).toBe(0);
+  expect(calls).toBe(1);
+  expect(maxItems).toBe(3);
+  const assembled = JSON.parse(await Bun.file(path.join(out, "translations.json")).text()) as {
+    translations: { id: string }[];
+  };
+  expect(assembled.translations.map((row) => row.id)).toEqual(["LINE001", "LINE002", "LINE003"]);
+});
+
+test("file-mode help mentions --input and --resume", async () => {
+  const io = capture();
+  const code = await runCli(["translate", "-h"], { env: {}, ...io });
+  expect(code).toBe(0);
+  expect(io.read().stdout).toContain("--input");
+  expect(io.read().stdout).toContain("--resume");
+  expect(io.read().stdout).toContain("--plan");
+  expect(io.read().stdout).toContain("promptHash");
+  expect(io.read().stdout).toContain("invalid JSON");
+  expect(io.read().stdout).toContain("unresolved.json");
 });
