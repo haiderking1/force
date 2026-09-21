@@ -2,8 +2,11 @@ import { runDiscoverClassify } from "../discovery/cli/classify-cmd.ts";
 import { runDiscoverPackExtract, runDiscoverPackList, runDiscoverPackStrings } from "../discovery/cli/pack.ts";
 import { runDiscoverScan } from "../discovery/cli/scan.ts";
 import { runDiscoverShow, runDiscoverSummary } from "../discovery/cli/show.ts";
+import { runRenderCommand } from "./render-cmd.ts";
+import { runPatchCommand } from "./patch-cmd.ts";
 import { DiscoveryError, isDiscoveryError } from "../discovery/errors.ts";
 import { isArchiveError } from "../archive/errors.ts";
+import { isPatchError } from "../patch/errors.ts";
 import { loadTranslationConfig } from "../translation/config/load.ts";
 import { createTranslationClient } from "../translation/create-client.ts";
 import { redactValue, secretsFromApiKey } from "../translation/diagnostics.ts";
@@ -31,6 +34,12 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
     }
     if (args.command === "discover") {
       return await runDiscoverCommand(args, io);
+    }
+    if (args.command === "render") {
+      return await runRenderCommand(args, io);
+    }
+    if (args.command === "patch") {
+      return await runPatchCommand(args, io);
     }
     if (args.help) {
       io.stdout.write(USAGE);
@@ -63,7 +72,7 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
     io.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     return 0;
   } catch (error) {
-    if (isDiscoveryError(error) || isTranslationError(error) || isArchiveError(error)) {
+    if (isDiscoveryError(error) || isTranslationError(error) || isArchiveError(error) || isPatchError(error)) {
       io.stderr.write(`${error.message}\n`);
       return 1;
     }

@@ -262,6 +262,16 @@ test("file-mode live translate persists batches through the CLI without a nested
   expect(assembled.translations.map((row) => row.id)).toEqual(["LINE001", "LINE002", "LINE003"]);
 });
 
+test("patch help mentions stage apply restore and confirm", async () => {
+  const io = capture();
+  const code = await runCli(["patch", "-h"], { env: {}, ...io });
+  expect(code).toBe(0);
+  expect(io.read().stdout).toContain("patch stage");
+  expect(io.read().stdout).toContain("patch apply");
+  expect(io.read().stdout).toContain("--confirm");
+  expect(io.read().stdout).toContain("not modify the installed game");
+});
+
 test("file-mode help mentions --input and --resume", async () => {
   const io = capture();
   const code = await runCli(["translate", "-h"], { env: {}, ...io });
