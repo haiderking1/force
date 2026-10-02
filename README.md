@@ -49,7 +49,7 @@ The artwork and movie workflow also uses external tools:
 
 These external tools are not installed by `uv`. RAD Video Tools also has its own licensing and redistribution terms. See [the Bink notes](docs/video/bink-on-linux.md) before using it.
 
-Game-specific tools also need the relevant installed game files. The development-machine default for Brütal Legend is currently a local Steam path, so pass `--root` unless your path matches it.
+Game-specific tools also need the relevant installed game files. Brütal Legend root precedence is an explicit root argument, then `BRUTAL_LEGEND_ROOT`, then `<os.homedir()>/.local/share/Steam/steamapps/common/BrutalLegend`.
 
 ## Setup
 
@@ -196,11 +196,11 @@ The pack commands inspect Buddha `.~h` and companion `.~p` files:
 ```sh
 bun run start discover pack list \
   --header "$BRUTAL_LEGEND_ROOT/Win/Packs/Man_Trivial.~h" \
-  --out out/archive/brutal-legend/listings
+  --out out/archive/brutal-legend/listings/Man_Trivial.json
 
 bun run start discover pack extract \
-  --header "$BRUTAL_LEGEND_ROOT/Win/Packs/Man_Trivial.~h" \
-  --entry stringtable/brutallegend \
+  --header "$BRUTAL_LEGEND_ROOT/Win/Packs/RgS_Faction.~h" \
+  --entry stringtable/brutallegend_enus \
   --out out/archive/brutal-legend/extracted
 
 bun run start discover pack strings \
@@ -211,7 +211,7 @@ bun run start discover pack strings \
 
 Pack commands also accept `--payload` for an explicit companion file, `--raw` for raw extraction, and `--match` to filter strings.
 
-The archive reader supports the PC Buddha dfpf v5.0 and v5.1 layout. It reads stored and zlib-compressed entries. Other compression flags, other dfpf versions, BLPT console data, and PCK or PKG formats are not silently treated as compatible.
+The archive reader supports the PC Buddha dfpf v5.0 and v5.1 layout. It reads stored and zlib-compressed entries. Each entry's decoded size is the sum of its content and extra-content size fields. Pack replacement refuses split-size entries with a nonzero extra-content size. Other compression flags, other dfpf versions, BLPT console data, and PCK or PKG formats are not silently treated as compatible.
 
 The text-resource decoder recognizes `StringTable`, `VidSubtitles`, `Story`, `SystemLineCodes`, and `JournalEntries`. `StringTable` is the main source of resolved display text. The other resource types expose timing, references, or line-code relationships.
 
@@ -232,6 +232,7 @@ Jev returns independent evidence classifications for UI text, dialogue or subtit
 The renderer uses the Force TTF, HarfBuzz shaping, bidirectional runs, wrapping, automatic fitting, and placeholder policies. It defaults to RTL and right alignment:
 
 ```sh
+mkdir -p out/render
 bun run start render \
   --font assets/fonts/force.ttf \
   --text "阿拉伯ية" \
@@ -249,25 +250,36 @@ The layout result contains the chosen font size, lines, glyph positions, visual 
 
 ## Brütal Legend stages
 
-The patch command builds files outside the installed game first:
+The patch command builds files outside the installed game first. These explicit inputs reproduce the previous translation selection order:
 
 ```sh
 bun run start patch stage \
   --game brutal-legend \
   --scope main-menu \
+  --translations out/translations/brutal-legend-prompt-v2/translations.json \
+  --translations out/translations/brutal-legend-cline-pass/translations.json \
+  --translations out/translations/brutal-legend/translations.json \
+  --candidates out/experiments/brutal-legend-main-menu/candidates.json \
   --root "$BRUTAL_LEGEND_ROOT" \
   --out out/experiments/brutal-legend-main-menu-arabic-v3
 
 bun run start patch stage \
   --game brutal-legend \
   --scope game-text \
+  --translations out/translations/brutal-legend-prompt-v2/translations.json \
+  --translations out/translations/brutal-legend-cline-pass/translations.json \
+  --translations out/translations/brutal-legend/translations.json \
   --root "$BRUTAL_LEGEND_ROOT" \
   --out out/experiments/brutal-legend-game-text-v1
 ```
 
-`main-menu` verifies a fixed set of Brütal Legend menu and dialog fields, shapes their Arabic text, appends PUA glyphs to the selected GFX fonts, adjusts the selected text alignment, and rebuilds the StringTable and GFX packs.
+At least one `--translations <file>` is required. Repeat it in precedence order; the first row for an id wins, including empty text. Optional `--candidates <file>` inputs are valid only for `main-menu` and precede all translation files, regardless of flag position. Candidate flags can also be repeated in precedence order. Paths resolve from the current working directory. Every supplied file must exist and parse; staging no longer skips missing files. Each stage's `report.json` records resolved input paths, SHA-256 hashes, per-input selection counts, and the winning source for each merged id.
+
+`main-menu` verifies a fixed set of Brütal Legend menu and dialog fields, shapes their Arabic text, appends PUA glyphs to the selected GFX fonts, adjusts the selected text alignment, and rebuilds the StringTable and GFX packs. It fails if a selected field lacks a verified translation.
 
 `game-text` works from eligible translated rows in the main and DLC StringTables. It classifies timed, spoken, and UI rows, lays out the text, appends generated PUA glyphs, preserves operative ASCII tokens, lowers the subtitle sprite, and rebuilds the affected packs. It also writes coverage, previews, checksums, reports, and an install manifest.
+
+The subtitle helpers `inspect-scope.ts`, `scan-missing-glyphs.ts`, `stage-intro.ts`, and `stage-settings.ts` also require repeatable `--translations <file>` arguments in precedence order. Keep their existing positional game-root and stage-directory arguments. `inspect-scope.ts` additionally requires `--corpus <file>`, for example `--corpus out/archive/brutal-legend/strings.json`. `stage-settings.ts` keeps the named `SETTINGS_TEXT` overrides ahead of file translations and records that layer and the selected sources in its report.
 
 The current `game-text` scope is not full visual coverage. It does not replace title-frame artwork, loose assets, movies, or every other text source. It leaves movie, timing, artwork, and FrontEnd GFX files untouched in the current stage. The stage report records these invariants and sets `inGameVerified` to false until a human verifies the result.
 
@@ -388,12 +400,10 @@ The encoder and media tools are external. A missing tracking matrix can leave a 
 
 ## Tests and checks
 
-The broad test command can discover large generated trees. In a workspace with an ignored `out` directory, use a bounded pattern and lower concurrency:
+`bunfig.toml` prunes `out/`, `node_modules/`, and `.venv/` from test discovery, so the plain test command is safe even when `out/` contains a Wine prefix:
 
 ```sh
-bun test --no-env-file \
-  --path-ignore-patterns='out/**' \
-  --max-concurrency=1
+bun test --no-env-file
 ```
 
 Focused Bun tests are useful while changing one subsystem:
@@ -404,7 +414,7 @@ bun test --no-env-file src/rendering/engine.test.ts
 bun test --no-env-file src/patch/install/stage-gate.test.ts
 ```
 
-Some production tests inspect a real game installation. Set `FORCE_TEST_ORIGINAL_GAME_ROOT` to a pristine copy or backup when the current installed files have already been patched. A production test failure caused by a modified game tree is not the same as a parser failure.
+Production tests require an UNPATCHED Brütal Legend copy. They use `FORCE_TEST_ORIGINAL_GAME_ROOT` first, then `BRUTAL_LEGEND_ROOT`, then the home-directory Steam default above. A backup files directory with the required `Win/Packs` pairs works; missing fixture files fail with a message naming `FORCE_TEST_ORIGINAL_GAME_ROOT`.
 
 The Unity Python tests are separate:
 
@@ -420,7 +430,7 @@ The package typecheck command is:
 bun --no-env-file run typecheck
 ```
 
-The root `tsconfig.json` does not currently exclude generated `out` content. In a workspace containing the RAD Wine prefix, TypeScript can follow a symlink under `out/tools` and scan unrelated system files. Use a scoped compiler check for the files you changed, or make the generated tree unavailable before running the broad command. Do not interpret an out-of-memory result as a type error.
+The root `tsconfig.json` includes only `src/` and `scripts/` and excludes `out/`, `node_modules/`, and `.venv/`.
 
 Tests cover parsers, round trips, safety gates, and synthetic fixtures. They do not prove visual quality, Wine or RAD compatibility, or full-game behavior. Those checks belong in the review and in-game validation steps above.
 
@@ -428,11 +438,13 @@ Tests cover parsers, round trips, safety gates, and synthetic fixtures. They do 
 
 - `src/cli/` is the Bun entry point, argument parsing, and command dispatch.
 - `src/translation/` contains provider adapters, prompts, token validation, HTTP transport, worker pools, checkpoints, and recovery.
-- `src/archive/` contains the Buddha dfpf v5 reader and pack replacement primitives.
+- `src/archive/` contains the Buddha dfpf v5 reader.
+- `src/patch/archive/` contains pack replacement logic.
 - `src/resources/` decodes StringTable and related Buddha text resources.
-- `src/discovery/` contains inventory, evidence extraction, reports, Jev classification, and the Brütal Legend adapter.
+- `src/discovery/` contains inventory, evidence extraction, reports, Jev classification, and the shared game adapter registry and types.
 - `src/rendering/` contains font shaping, Unicode and bidi handling, layout, fitting, and previews.
-- `src/patch/` contains GFX, StringTable, PUA font, Brütal Legend stage, checksum, backup, and install logic.
+- `src/patch/` contains shared GFX, StringTable, PUA font, pack writing, checksum, backup, and install logic.
+- `src/games/brutal-legend/` contains Brütal Legend configuration, discovery, asset loading, menu and subtitle stages, text coverage, artwork settings, and production integration tests.
 - `src/unity/` contains the TypeScript Pentiment adapter and the Unity command wrapper.
 - `src/artwork/` is the Bun-to-Python artwork launcher.
 - `src/video/` contains the BIKi parser and audio-preserving remuxer.

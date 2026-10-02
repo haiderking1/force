@@ -1,6 +1,6 @@
 # Project font
 
-`force.ttf` is the project face. Nothing under `src/` loads it yet.
+`force.ttf` is the project face.
 
 ## Source
 

@@ -2,7 +2,7 @@
 
 ## Verified result
 
-RAD Video Tools successfully encoded a PNG into Bink 1 under Wine 11.17. FFprobe identified the result as `BIKi`, and FFmpeg decoded it without errors. This is an external Windows encoder running through Wine, not a native Linux encoder or an integrated Force command.
+RAD Video Tools successfully encoded a PNG into Bink 1 under Wine 11.17. FFprobe identified the result as `BIKi`, and FFmpeg decoded it without errors. The encoder runs through Wine. Force now integrates Wine/RAD encoding into the artwork pipeline through `scripts/artwork/engine/export.py`, which encodes rendered frames, remuxes the original audio packets, and validates the result. The one-frame smoke test below records the earlier standalone experiment.
 
 The test used a frame extracted from Brütal Legend’s `Data/UI/FrontEnd/Movies/newgame.bik`. The English New Game lettering is visible in that decoded frame, so changing StringTable text cannot replace it.
 

@@ -28,7 +28,7 @@ FFmpeg/ffprobe, ImageMagick, librsvg, Bun, and the Wine/RAD encoder remain exter
 
 Python child processes use the active interpreter through `sys.executable`. Do not resolve its symlink to the base Python installation; doing so can bypass the virtual environment.
 
-Saved projects keep their encoder and Wine-prefix paths, but no longer pin a Python executable. Loading an older version-1 project ignores its saved Python path and uses the active environment. The old `out/tools/menu-artwork-venv` directory is left intact, but the main CLI no longer uses it. The former `FORCE_ARTWORK_PYTHON` override and project-create `--python` option are removed.
+Saved projects keep their encoder and Wine-prefix paths, but no longer pin a Python executable. Loading an older version-1 project ignores its saved Python path and uses the active environment. The former `FORCE_ARTWORK_PYTHON` override and project-create `--python` option are removed.
 
 Project/config JSON, tracking evidence, correction keyframes, and export manifests remain the boundary between the tools. Dependency-lock changes invalidate artwork caches alongside implementation changes. Commands do not set automatic execution deadlines.
 
