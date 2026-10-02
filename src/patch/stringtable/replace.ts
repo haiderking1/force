@@ -98,15 +98,26 @@ export function replaceStringTableTexts(
     }
     ordered.push({ span, text });
   }
-  ordered.sort((left, right) => right.span.start - left.span.start);
+  ordered.sort((left, right) => left.span.start - right.span.start);
+  for (let index = 1; index < ordered.length; index += 1) {
+    const previous = ordered[index - 1];
+    const current = ordered[index];
+    if (previous === undefined || current === undefined) {
+      continue;
+    }
+    if (current.span.start < previous.span.end) {
+      throw new PatchError("RESOURCE", `StringTable text spans overlap at ${current.span.lineCode}`);
+    }
+  }
 
-  let current = bytes;
+  const parts: Uint8Array[] = [];
+  let cursor = 0;
+  let total = 0;
   for (const item of ordered) {
+    const head = bytes.subarray(cursor, item.span.start);
     const encoded = encodeBuddhaQuoted(item.text);
-    const next = new Uint8Array(current.length - (item.span.end - item.span.start) + encoded.length);
-    next.set(current.subarray(0, item.span.start), 0);
-    next.set(encoded, item.span.start);
-    next.set(current.subarray(item.span.end), item.span.start + encoded.length);
+    parts.push(head, encoded);
+    total += head.length + encoded.length;
     applied.push({
       lineCode: item.span.lineCode,
       original: item.span.original,
@@ -115,7 +126,16 @@ export function replaceStringTableTexts(
       originalLength: item.span.end - item.span.start,
       newLength: encoded.length,
     });
-    current = next;
+    cursor = item.span.end;
+  }
+  const tail = bytes.subarray(cursor);
+  parts.push(tail);
+  total += tail.length;
+  const current = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    current.set(part, offset);
+    offset += part.length;
   }
 
   if (current.length < 4) {
@@ -150,5 +170,5 @@ export function replaceStringTableTexts(
     throw new PatchError("RESOURCE", "Replacement changed the StringTable record count");
   }
 
-  return { bytes: current, replaced: applied.reverse() };
+  return { bytes: current, replaced: applied };
 }

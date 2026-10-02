@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { extractBuddhaEntry } from "../../archive/buddha/extract.ts";
@@ -57,21 +57,25 @@ test("production RgS_Faction replacement preserves untouched metadata and payloa
   headerOutsideReplacementFieldsEqual(originalHeader, rebuilt.header, [entry]);
   const dir = path.join(tmpdir(), `force-prod-roundtrip-${Date.now()}`);
   await mkdir(dir, { recursive: true });
-  const nextHeader = path.join(dir, "RgS_Faction.~h");
-  const nextPayload = path.join(dir, "RgS_Faction.~p");
-  await writeFile(nextHeader, rebuilt.header);
-  await writeFile(nextPayload, rebuilt.payload);
-  const nextList = await openBuddhaPack({ headerPath: nextHeader, payloadPath: nextPayload });
-  assertUntouchedEntriesMatch(
-    untouched,
-    collectUntouchedEntries(nextList, rebuilt.header, rebuilt.payload, new Set([entry.index])),
-  );
-  const nextExtracted = await extractBuddhaEntry(nextList, BRUTAL_LEGEND_STRING_TABLE_ENTRY);
-  const nextDecoded = decodeStringTable(nextExtracted.bytes);
-  expect(nextDecoded.records.find((record) => record.lineCode === "PMTE028TEXT")?.text).toBe("رجوع");
-  expect(nextDecoded.records.find((record) => record.lineCode === "PMTE029TEXT")?.text).toBe("اختيار");
-  expect(nextDecoded.records.find((record) => record.lineCode === first.lineCode && record.text === first.text)).toBeUndefined();
-  const untouchedText = decoded.records.find((record) => record.lineCode === "TOGU042TEXT");
-  expect(nextDecoded.records.find((record) => record.lineCode === "TOGU042TEXT")?.text).toBe(untouchedText?.text);
-  expect(sha256Bytes(rebuilt.payload.subarray(entry.payloadOffset, entry.payloadOffset + 16))).not.toBe("");
+  try {
+    const nextHeader = path.join(dir, "RgS_Faction.~h");
+    const nextPayload = path.join(dir, "RgS_Faction.~p");
+    await writeFile(nextHeader, rebuilt.header);
+    await writeFile(nextPayload, rebuilt.payload);
+    const nextList = await openBuddhaPack({ headerPath: nextHeader, payloadPath: nextPayload });
+    assertUntouchedEntriesMatch(
+      untouched,
+      collectUntouchedEntries(nextList, rebuilt.header, rebuilt.payload, new Set([entry.index])),
+    );
+    const nextExtracted = await extractBuddhaEntry(nextList, BRUTAL_LEGEND_STRING_TABLE_ENTRY);
+    const nextDecoded = decodeStringTable(nextExtracted.bytes);
+    expect(nextDecoded.records.find((record) => record.lineCode === "PMTE028TEXT")?.text).toBe("رجوع");
+    expect(nextDecoded.records.find((record) => record.lineCode === "PMTE029TEXT")?.text).toBe("اختيار");
+    expect(nextDecoded.records.find((record) => record.lineCode === first.lineCode && record.text === first.text)).toBeUndefined();
+    const untouchedText = decoded.records.find((record) => record.lineCode === "TOGU042TEXT");
+    expect(nextDecoded.records.find((record) => record.lineCode === "TOGU042TEXT")?.text).toBe(untouchedText?.text);
+    expect(sha256Bytes(rebuilt.payload.subarray(entry.payloadOffset, entry.payloadOffset + 16))).not.toBe("");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

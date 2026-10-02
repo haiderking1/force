@@ -9,6 +9,9 @@ Usage:
   bun run start translate --input <strings.json> --out <dir> [--resume]
   bun run start translate --input <strings.json> --out <dir> --plan
   bun run start translate --input <strings.json> --out <dir> --dry-run
+  bun run start unity --help
+  bun run start unity scan --root <unity-game> --out <inventory-dir>
+  bun run start unity extract --game pentiment --root <game> --out <corpus-dir>
   bun run start discover scan --game brutal-legend [--root <path>] [--out <file>]
   bun run start discover classify --report <file> [--out <file>]
   bun run start discover summary --report <file>
@@ -17,7 +20,7 @@ Usage:
   bun run start discover pack extract --header <file.~h> --entry <name> [--out <dir>] [--raw]
   bun run start discover pack strings [--game brutal-legend] [--root <path>] [--header <file.~h>] [--match <text>] [--out <dir>]
   bun run start render --font <path> --text <string> [options]
-  bun run start patch stage --game brutal-legend --scope main-menu [--root <path>] [--out <dir>]
+  bun run start patch stage --game brutal-legend --scope main-menu|game-text [--root <path>] [--out <dir>]
   bun run start patch apply --stage <dir> --backup <dir> --confirm
   bun run start patch restore --backup <dir> --confirm
 
@@ -84,8 +87,10 @@ Discovery:
   discover pack list/extract/strings parse Buddha dfpf v5 .~h/.~p locally. They do not call Jev.
 
 Patch:
-  patch stage rebuilds main-menu StringTable and DefineFont3 GFX packs under a
-  new out/experiments directory. It does not modify the installed game.
+  patch stage rebuilds StringTable and DefineFont3 GFX packs under a new
+  out/experiments directory. --scope main-menu covers the verified menu fields.
+  --scope game-text encodes remaining translations, appends shared PUA glyphs,
+  and lowers subtitle.gfx. It does not modify the installed game.
   patch apply is an explicit opt-in. It refuses a running game, checksum
   mismatch, a font-incomplete stage, or a backup path inside the game folder.
   It copies originals outside the game tree first, then replaces files atomically.

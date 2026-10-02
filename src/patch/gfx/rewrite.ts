@@ -22,7 +22,8 @@ export function encodeSwfTag(type: number, data: Uint8Array): Uint8Array {
   return out;
 }
 
-export function replaceSwfTagData(body: Uint8Array, replacements: ReadonlyMap<number, Uint8Array>): Uint8Array {
+export function replaceSwfTagData(body: Uint8Array, replacements: ReadonlyMap<number, Uint8Array>,
+  replacementTypes: ReadonlyMap<number, number> = new Map()): Uint8Array {
   const walked = walkSwfTags(body);
   const headerEnd = walked.tags[0]?.offset ?? body.length - walked.leftover;
   const chunks: Uint8Array[] = [body.subarray(0, headerEnd)];
@@ -32,7 +33,7 @@ export function replaceSwfTagData(body: Uint8Array, replacements: ReadonlyMap<nu
       chunks.push(body.subarray(tag.offset, tag.offset + tag.headerSize + tag.length));
       continue;
     }
-    chunks.push(encodeSwfTag(tag.type, nextData));
+    chunks.push(encodeSwfTag(replacementTypes.get(tag.offset) ?? tag.type, nextData));
   }
   if (walked.leftover > 0) {
     const leftoverStart = body.length - walked.leftover;
@@ -51,9 +52,10 @@ export function replaceSwfTagData(body: Uint8Array, replacements: ReadonlyMap<nu
 export function rebuildGfxFile(
   original: Uint8Array,
   replacements: ReadonlyMap<number, Uint8Array>,
+  replacementTypes: ReadonlyMap<number, number> = new Map(),
 ): Uint8Array {
   const gfx = decompressGfx(original);
-  const nextBody = replaceSwfTagData(gfx.body, replacements);
+  const nextBody = replaceSwfTagData(gfx.body, replacements, replacementTypes);
   const declaredLength = 8 + nextBody.length;
   if (declaredLength > 0xffffffff) {
     throw new PatchError("LIMIT", `Rewritten GFX length ${declaredLength} exceeds UI32`);

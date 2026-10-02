@@ -63,7 +63,8 @@ function mapExtractedRecord(row: unknown, index: number): CorpusItem | undefined
     sourceByteOffset: optionalInt(row.sourceByteOffset, `sourceByteOffset at ${index}`),
     extra: readExtra(row.extra, index),
   };
-  return { id: recordId, text, source };
+  const context = optionalString(row.context, `context at ${index}`);
+  return { id: recordId, text, source, ...(context === undefined ? {} : { context }) };
 }
 
 function requiredString(value: unknown, label: string): string {

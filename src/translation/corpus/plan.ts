@@ -65,7 +65,8 @@ export function buildCheckpointIdentity(options: {
   readonly temperature: number;
   readonly batchSize: number;
 }): CheckpointIdentity {
-  const sourceRows = options.items.map((item) => ({ id: item.id, text: item.text }));
+  const sourceRows = options.items.map((item) => ({ id: item.id, text: item.text,
+    ...(item.context === undefined ? {} : { context: item.context }) }));
   const prompt = buildTranslationMessages({
     targetLanguage: options.targetLanguage,
     placeholders: options.placeholders,

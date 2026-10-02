@@ -109,7 +109,9 @@ export async function replaceBuddhaEntries(options: {
     const originalContent = decompressBuddhaPayload(originalStored, compression, entry.contentSize);
     const originalRecord = header.slice(entry.recordOffset, entry.recordOffset + BUDDHA_ENTRY_SIZE);
     const slotEnd = entrySlotEnd(list.entries, entry.index, parsedHeader.dataFooterOffset);
-    const available = slotEnd - entry.payloadOffset;
+    // Footer offsets can include alignment padding absent from the physical file,
+    // especially after an earlier append. Only existing bytes are writable in place.
+    const available = Math.min(slotEnd, payloadCopy.length) - entry.payloadOffset;
     const placement = stored.length <= available ? "in-place" : "append";
     const payloadOffset = placement === "in-place" ? entry.payloadOffset : alignUp(payloadSize, alignment);
     if (placement === "append") {

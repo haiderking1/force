@@ -33,7 +33,7 @@ export function protectRequest(original: TranslateRequest) {
         offset += token.length;
       }
     }
-    return { id: item.id, text };
+    return { id: item.id, text, ...(item.context === undefined ? {} : { context: item.context }) };
   });
   const request: TranslateRequest = {
     ...original, items, placeholders: bindings.map(binding => binding.marker),

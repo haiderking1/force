@@ -60,7 +60,8 @@ export function validateTranslations(payload: unknown, request: TranslateRequest
     byId.set(row.id, row.text);
   }
 
-  const extras = [...byId.keys()].filter((id) => !request.items.some((item) => item.id === id));
+  const expectedIds = new Set(request.items.map(item => item.id));
+  const extras = [...byId.keys()].filter((id) => !expectedIds.has(id));
   if (extras.length > 0) {
     throw new TranslationError("RESPONSE", `Translation response has unexpected ids: ${extras.join(", ")}`);
   }

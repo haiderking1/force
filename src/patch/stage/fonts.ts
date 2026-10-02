@@ -1,5 +1,5 @@
 import { PatchError } from "../errors.ts";
-import { parseDefineEditText, lineCodeInEditText } from "../gfx/edit-text.ts";
+import { parseDefineEditText, lineCodeInEditText, patchDefineEditTextAlignment, type EditTextAlignment } from "../gfx/edit-text.ts";
 import { appendFont3Glyphs } from "../gfx/font3/append.ts";
 import { parseDefineFont3Tag, assertDefineFont3Tag } from "../gfx/font3/parse.ts";
 import { serializeDefineFont3Tag } from "../gfx/font3/serialize.ts";
@@ -12,7 +12,7 @@ import {
   fontsRequiredForV2Fields,
 } from "../games/brutal-legend/menu-fields.ts";
 import { rebuildGfxFile } from "../gfx/rewrite.ts";
-import { decompressGfx, SWF_TAG_NAMES, walkSwfTags } from "../gfx/swf.ts";
+import { decompressGfx, readU16Le, SWF_TAG_NAMES, walkSwfTags } from "../gfx/swf.ts";
 import { Shaper } from "../../rendering/font/shaper.ts";
 
 export type FontRewriteResult = {
@@ -35,6 +35,10 @@ export type FontRewriteResult = {
     readonly fontFace: string | undefined;
     readonly fontId: number | undefined;
   }[];
+  readonly patchedEditTexts: readonly {
+    readonly id: number;
+    readonly align: EditTextAlignment;
+  }[];
   readonly titleFrameLabels: readonly string[];
   readonly previewSvgByFont: Readonly<Record<string, string>>;
 };
@@ -55,10 +59,12 @@ function replaceNamedFonts(
   families: ReadonlySet<string>,
   glyphs: PuaLabelPlan["glyphs"],
   file: "englishfonts" | "frontend",
+  editTextAlignments?: readonly { readonly id: number; readonly align: EditTextAlignment }[],
 ): {
   readonly next: Uint8Array;
   readonly rewritten: FontRewriteResult["rewrittenFonts"];
   readonly parsed: readonly DefineFont3Tag[];
+  readonly patchedEditTexts: readonly { readonly id: number; readonly align: EditTextAlignment }[];
 } {
   const gfx = decompressGfx(bytes);
   rejectUnsupportedFontTags(gfx.body, file);
@@ -76,7 +82,18 @@ function replaceNamedFonts(
     nextTagLength: number;
   }> = [];
   const parsed: DefineFont3Tag[] = [];
+  const patchedEditTexts: Array<{ id: number; align: EditTextAlignment }> = [];
   for (const tag of walked.tags) {
+    if (tag.type === 37 && editTextAlignments !== undefined) {
+      const editId = readU16Le(tag.data, 0);
+      const target = editTextAlignments.find((item) => item.id === editId);
+      if (target !== undefined) {
+        const nextData = patchDefineEditTextAlignment(tag.data, target.align);
+        replacements.set(tag.offset, nextData);
+        patchedEditTexts.push({ id: editId, align: target.align });
+      }
+      continue;
+    }
     if (tag.type !== 75) {
       continue;
     }
@@ -109,7 +126,7 @@ function replaceNamedFonts(
   if (missing.length > 0) {
     throw new PatchError("GFX", `${file} is missing DefineFont3 families ${missing.join(", ")}`);
   }
-  return { next: rebuildGfxFile(bytes, replacements), rewritten, parsed };
+  return { next: rebuildGfxFile(bytes, replacements), rewritten, parsed, patchedEditTexts };
 }
 
 export function rewriteMenuFonts(options: {
@@ -117,6 +134,7 @@ export function rewriteMenuFonts(options: {
   readonly frontendBytes: Uint8Array;
   readonly shaper: Shaper;
   readonly labels: readonly { readonly id: string; readonly text: string }[];
+  readonly editTextAlignments?: readonly { readonly id: number; readonly align: EditTextAlignment }[];
 }): FontRewriteResult {
   const required = fontsRequiredForV2Fields();
   const plan = planPuaLabels(options.shaper, options.labels);
@@ -131,6 +149,7 @@ export function rewriteMenuFonts(options: {
     new Set(required.frontendFontFamilies),
     plan.glyphs,
     "frontend",
+    options.editTextAlignments,
   );
 
   const gfx = decompressGfx(options.frontendBytes);
@@ -163,6 +182,7 @@ export function rewriteMenuFonts(options: {
     plan,
     rewrittenFonts: [...english.rewritten, ...frontend.rewritten],
     editTextEvidence,
+    patchedEditTexts: frontend.patchedEditTexts,
     titleFrameLabels,
     previewSvgByFont,
   };

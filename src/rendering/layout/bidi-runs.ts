@@ -89,6 +89,7 @@ export function visualRuns(
     let spaces = true;
     let reservedAdvance = 0;
     let hasReserved = false;
+    let tokenRaw = "";
     let first = charPositions[begin] ?? 0;
     let last = first;
 
@@ -100,6 +101,9 @@ export function visualRuns(
       if (ch.reservedAdvance !== undefined) {
         hasReserved = true;
         reservedAdvance += ch.reservedAdvance;
+        if (ch.tokenRaw !== undefined) {
+          tokenRaw += ch.tokenRaw;
+        }
       }
 
       const pos = charPositions[i] ?? 0;
@@ -117,6 +121,7 @@ export function visualRuns(
       styles: firstChar.styles,
       direction,
       reservedAdvance: hasReserved ? reservedAdvance : undefined,
+      tokenRaw: tokenRaw.length > 0 ? tokenRaw : undefined,
     };
 
     return { run, position: first };

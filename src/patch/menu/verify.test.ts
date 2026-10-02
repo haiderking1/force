@@ -47,6 +47,9 @@ test("rejects candidate ids that are not FrontEnd.gfx *LINECODE refs", () => {
       "PMTE028TEXT",
       "PMTE029TEXT",
       "TOLB032TEXT",
+      "TOLB065TEXT",
+      "TOLB066TEXT",
+      "TOLB134TEXT",
     ],
     ["TOGU042TEXT"],
   );

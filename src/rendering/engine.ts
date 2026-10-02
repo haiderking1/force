@@ -62,6 +62,18 @@ export class LayoutEngine {
   }
 
   layout(text: string, options: LayoutOptions): LayoutResult {
+    const { paragraphs, diagnostics } = prepareGameLines(text, {
+      placeholderPolicy: options.placeholderPolicy,
+      expandLiteralEscapes: options.expandLiteralEscapes,
+    });
+    return this.layoutPrepared(paragraphs, diagnostics, options);
+  }
+
+  layoutPrepared(
+    paragraphs: readonly Line[],
+    diagnostics: readonly LayoutDiagnostic[],
+    options: LayoutOptions,
+  ): LayoutResult {
     const upem = this.shaper.unitsPerEm();
 
     const profile: Profile = {
@@ -76,11 +88,6 @@ export class LayoutEngine {
     validateProfile(profile);
 
     const baseDir: BaseDirection = options.baseDirection ?? "rtl";
-
-    const { paragraphs, diagnostics } = prepareGameLines(text, {
-      placeholderPolicy: options.placeholderPolicy,
-      expandLiteralEscapes: options.expandLiteralEscapes,
-    });
 
     const minimum = profile.minimumSize && profile.minimumSize > 0 ? profile.minimumSize : profile.size;
     const lineGap = options.lineGap ?? 0;

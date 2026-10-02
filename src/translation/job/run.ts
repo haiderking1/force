@@ -63,7 +63,8 @@ export async function runCorpusJob(options: CorpusJobOptions): Promise<CorpusJob
               {
                 targetLanguage: options.plan.targetLanguage,
                 placeholders: options.plan.placeholders,
-                items: work.items.map((item) => ({ id: item.id, text: item.text })),
+                items: work.items.map((item) => ({ id: item.id, text: item.text,
+                  ...(item.context === undefined ? {} : { context: item.context }) })),
               },
               { signal },
             );

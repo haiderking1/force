@@ -3,6 +3,8 @@ import { runDiscoverPackExtract, runDiscoverPackList, runDiscoverPackStrings } f
 import { runDiscoverScan } from "../discovery/cli/scan.ts";
 import { runDiscoverShow, runDiscoverSummary } from "../discovery/cli/show.ts";
 import { runRenderCommand } from "./render-cmd.ts";
+import { runArtworkCommand } from "../artwork/cli.ts";
+import { runUnityCommand } from "../unity/cli.ts";
 import { runPatchCommand } from "./patch-cmd.ts";
 import { DiscoveryError, isDiscoveryError } from "../discovery/errors.ts";
 import { isArchiveError } from "../archive/errors.ts";
@@ -22,6 +24,8 @@ export type { CliIo, CliWriter } from "./io.ts";
 
 export async function runCli(argv: readonly string[], io: CliIo): Promise<number> {
   try {
+    if (argv[0] === "artwork") return await runArtworkCommand(argv.slice(1), io);
+    if (argv[0] === "unity") return await runUnityCommand(argv.slice(1), io);
     const args = parseCliArgs(argv);
     if (args.command === "help") {
       io.stdout.write(USAGE);

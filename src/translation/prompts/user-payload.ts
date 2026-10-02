@@ -4,6 +4,7 @@ import type { SourceText, TranslateRequest } from "../types.ts";
 export type UserPayloadItem = {
   readonly id: string;
   readonly text: string;
+  readonly context?: string;
 };
 
 export type UserPayloadTokenCounts = {
@@ -22,7 +23,7 @@ export type TranslationUserPayload = {
 };
 
 export function buildTranslationUserPayload(request: TranslateRequest): TranslationUserPayload {
-  const items: SourceText[] = request.items.map((item) => ({ id: item.id, text: item.text }));
+  const items: SourceText[] = request.items.map((item) => ({ id: item.id, text: item.text, ...(item.context === undefined ? {} : { context: item.context }) }));
   return {
     items,
     guidance: {

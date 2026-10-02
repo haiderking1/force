@@ -1,11 +1,11 @@
 const PRINTF =
   /%(?:%|(?:\d+\$)?[-+0#]*(?:\d+|\*)?(?:\.(?:\d+|\*))?(?:hh|h|ll|l|L|z|j|t)?[diuoxXfFeEgGaAcspni])/g;
 
-const BRACE = /\{(?:\/)?(?:[A-Za-z_][A-Za-z0-9_.]*|\d+)(?:=[^\s{}]+)?\}/g;
+const BRACE = /\{(?:\/)?(?:[A-Za-z_][A-Za-z0-9_.]*|\d+)(?:=[^\s{}]+|(?:,-?\d+)?(?::[^{}]+)?)?\}/g;
 
 const BRACKET = /\[[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*(?:![A-Za-z0-9_]+)?\]/g;
 
-const MARKUP = /<\/?[A-Za-z][A-Za-z0-9]*(?:\s[^<>]*)?>/g;
+const MARKUP = /<\/?[A-Za-z][A-Za-z0-9]*(?:(?:\s|=)[^<>]*)?>/g;
 
 const SLASH = /\/[A-Za-z_][A-Za-z0-9_]*\//g;
 

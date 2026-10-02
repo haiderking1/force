@@ -70,6 +70,7 @@ export type Character = {
   readonly codepoint: number;
   readonly styles: readonly number[];
   readonly reservedAdvance?: number;
+  readonly tokenRaw?: string;
 };
 
 export type Line = {
@@ -83,6 +84,7 @@ export type Run = {
   readonly styles: readonly number[];
   readonly direction: TokenDirection;
   readonly reservedAdvance?: number;
+  readonly tokenRaw?: string;
 };
 
 export type EncodedSpan = {

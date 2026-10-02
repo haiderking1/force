@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { writeMsbBits } from "../../archive/buddha/bits.ts";
+import { writeMsbBits, writeU64Be } from "../../archive/buddha/bits.ts";
 import { buildV5Pack } from "../../archive/buddha/build-v5-pack.ts";
 import { extractBuddhaEntry } from "../../archive/buddha/extract.ts";
 import { parseBuddhaHeader } from "../../archive/buddha/header.ts";
@@ -123,6 +123,23 @@ test("oversized replacement appends after the original payload and keeps earlier
   expect(extracted.bytes).toEqual(huge);
   const keepExtracted = await extractBuddhaEntry(list, "keep");
   expect(keepExtracted.bytes).toEqual(keep);
+});
+
+test("last-entry growth cannot write into footer padding beyond the physical payload", async () => {
+  const pack = buildV5Pack(
+    [{ name: "Blob" }],
+    [{ name: "last", typeIndex: 0, bytes: new Uint8Array([1, 2]), compress: false }],
+  );
+  writeU64Be(pack.header, 48, pack.payload.length + 256);
+  const files = await writePack("footer-padding", pack);
+  const replacement = new Uint8Array(pack.payload.length + 16).fill(7);
+  const result = await replaceBuddhaEntries({ headerPath: files.header, payloadPath: files.payload,
+    replacements: [{ identifier: "last", bytes: replacement }] });
+  expect(result.replacements[0]?.placement).toBe("append");
+  await writeFile(files.header, result.header);
+  await writeFile(files.payload, result.payload);
+  const list = await openBuddhaPack({ headerPath: files.header, payloadPath: files.payload });
+  expect((await extractBuddhaEntry(list, "last")).bytes).toEqual(replacement);
 });
 
 test("rejects a missing entry and a stored-size overflow", async () => {

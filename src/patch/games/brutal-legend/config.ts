@@ -5,6 +5,8 @@ export const BRUTAL_LEGEND_DEFAULT_ROOT =
 
 export const BRUTAL_LEGEND_STRING_TABLE_PACK = "Win/Packs/RgS_Faction.~h";
 export const BRUTAL_LEGEND_STRING_TABLE_ENTRY = "stringtable/brutallegend_enus";
+export const BRUTAL_LEGEND_DLC_PACK = "Win/Packs/DLC1_Stuff.~h";
+export const BRUTAL_LEGEND_DLC_STRING_TABLE_ENTRY = "stringtable/bl1dlc1_enus";
 export const BRUTAL_LEGEND_GFX_PACK = "Win/Packs/Man_Gfx.~h";
 export const BRUTAL_LEGEND_FRONTEND_GFX_ENTRY = "data/ui/frontend/opt/frontend.gfx";
 export const BRUTAL_LEGEND_FONTS_GFX_ENTRY = "data/ui/fonts/opt/englishfonts.gfx";
@@ -44,6 +46,9 @@ export const BRUTAL_LEGEND_TITLE_MENU_STARRED_IDS = [
   "PMTE028TEXT",
   "PMTE029TEXT",
   "TOLB032TEXT",
+  "TOLB065TEXT",
+  "TOLB066TEXT",
+  "TOLB134TEXT",
 ] as const;
 
 export const BRUTAL_LEGEND_TRANSLATION_DIRS = [

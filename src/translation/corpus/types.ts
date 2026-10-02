@@ -15,6 +15,7 @@ export type CorpusSourceMapping = {
 export type CorpusItem = {
   readonly id: string;
   readonly text: string;
+  readonly context?: string;
   readonly source: CorpusSourceMapping;
 };
 

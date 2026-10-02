@@ -1,6 +1,7 @@
 export type SourceText = {
   readonly id: string;
   readonly text: string;
+  readonly context?: string;
 };
 
 export type TranslationItem = {

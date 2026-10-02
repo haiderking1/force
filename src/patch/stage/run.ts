@@ -20,10 +20,12 @@ import {
   BRUTAL_LEGEND_TITLE_FRAME_LABELS,
   BRUTAL_LEGEND_V2_FIELD_IDS,
   BRUTAL_LEGEND_V2_MENU_FIELDS,
+  BRUTAL_LEGEND_EDIT_TEXT_ALIGNMENTS,
 } from "../games/brutal-legend/menu-fields.ts";
+import { parseDefineEditText } from "../gfx/edit-text.ts";
 import { inspectGfxBytes } from "../gfx/inspect.ts";
 import { parseDefineFont3Tag } from "../gfx/font3/parse.ts";
-import { decompressGfx, walkSwfTags } from "../gfx/swf.ts";
+import { decompressGfx, readU16Le, walkSwfTags } from "../gfx/swf.ts";
 import { sha256Bytes, sha256File } from "../hash.ts";
 import { verifyMainMenuIds } from "../menu/verify.ts";
 import { replaceStringTableTexts } from "../stringtable/replace.ts";
@@ -109,7 +111,7 @@ export async function stageBrutalLegendMainMenu(options: StageOptions): Promise<
   const englishById = new Map(table.records.map((record) => [record.lineCode, record.text]));
 
   const translationFiles = [];
-  for (const relative of [...BRUTAL_LEGEND_TRANSLATION_DIRS, BRUTAL_LEGEND_CANDIDATES_PATH]) {
+  for (const relative of [BRUTAL_LEGEND_CANDIDATES_PATH, ...BRUTAL_LEGEND_TRANSLATION_DIRS]) {
     const loaded = await readJsonIfPresent(path.join(options.workspaceRoot, relative));
     if (loaded !== undefined) {
       translationFiles.push(loaded);
@@ -145,6 +147,7 @@ export async function stageBrutalLegendMainMenu(options: StageOptions): Promise<
       frontendBytes: assets.frontendBytes,
       shaper,
       labels: selected.map((item) => ({ id: item.id, text: item.text })),
+      editTextAlignments: BRUTAL_LEGEND_EDIT_TEXT_ALIGNMENTS,
     });
   } finally {
     shaper.destroy();
@@ -152,6 +155,22 @@ export async function stageBrutalLegendMainMenu(options: StageOptions): Promise<
   const puaCodes = fontRewrite.plan.glyphs.map((glyph) => glyph.code);
   assertOriginalGlyphsPreserved(assets.fontsBytes, fontRewrite.fontsBytes, puaCodes);
   assertOriginalGlyphsPreserved(assets.frontendBytes, fontRewrite.frontendBytes, puaCodes);
+
+  for (const alignment of BRUTAL_LEGEND_EDIT_TEXT_ALIGNMENTS) {
+    const patchedTag = walkSwfTags(decompressGfx(fontRewrite.frontendBytes).body).tags.find(
+      (tag) => tag.type === 37 && readU16Le(tag.data, 0) === alignment.id,
+    );
+    if (patchedTag === undefined) {
+      throw new PatchError("ROUNDTRIP", `DefineEditText ${alignment.id} missing after rewrite`);
+    }
+    const parsed = parseDefineEditText(patchedTag.data);
+    if (parsed.align !== alignment.align) {
+      throw new PatchError(
+        "ROUNDTRIP",
+        `DefineEditText ${alignment.id} alignment is ${parsed.align}, expected ${alignment.align}`,
+      );
+    }
+  }
 
   const puaReplacements = encodedReplacements(fontRewrite.plan);
   const rewritten = replaceStringTableTexts(assets.stringTableBytes, puaReplacements);
@@ -244,7 +263,7 @@ export async function stageBrutalLegendMainMenu(options: StageOptions): Promise<
   const report = {
     game: "brutal-legend",
     scope: "main-menu-only",
-    experiment: "v2-pua-font3",
+    experiment: "v3-main-menu-arabic",
     installedGameModified: false,
     readyToApply: true,
     gameRoot,
@@ -273,6 +292,7 @@ export async function stageBrutalLegendMainMenu(options: StageOptions): Promise<
     titleFrameLabels: fontRewrite.titleFrameLabels,
     knownTitleFrameLabels: BRUTAL_LEGEND_TITLE_FRAME_LABELS,
     editTextEvidence: fontRewrite.editTextEvidence,
+    patchedEditTexts: fontRewrite.patchedEditTexts,
     frontend: {
       signature: frontend.signature,
       version: frontend.version,

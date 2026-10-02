@@ -1,5 +1,8 @@
-# dependencies (bun install)
+# dependencies (bun install / uv sync)
 node_modules
+.venv/
+__pycache__/
+*.py[cod]
 
 # output
 out
@@ -17,10 +20,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # dotenv environment variable files
 .env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+.env.*
+!.env.example
 
 # caches
 .eslintcache

@@ -1,0 +1,13 @@
+[project]
+name = "force-artwork"
+version = "0.1.0"
+description = "Local video artwork processing for the Force game translator"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "numpy==2.5.3",
+    "opencv-python-headless==5.0.0.93",
+    "unitypy==1.24.2",
+]
+
+[tool.uv]
+package = false

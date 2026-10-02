@@ -76,7 +76,60 @@ export const BRUTAL_LEGEND_V2_MENU_FIELDS: readonly MenuFieldSpec[] = [
     font: { kind: "embedded", family: "Zamora" },
     evidence: "DefineEditText id 353 initial *PMTE100TEXT face=Zamora",
   },
+  {
+    lineCode: "TOGU041TEXT",
+    role: "difficulty-brutal",
+    font: { kind: "imported", alias: "$Menu", family: "TG_Menu" },
+    evidence: "DoAction *TOGU041TEXT; 3rd difficulty choice next to PMTE100TEXT",
+  },
+  {
+    lineCode: "TOLB065TEXT",
+    role: "dialog-cancel",
+    font: { kind: "imported", alias: "$Condensed", family: "TG_Condensed" },
+    evidence: "DoInitAction *TOLB065TEXT; cancel button on MessageBox hintbar_popup",
+  },
+  {
+    lineCode: "TOLB066TEXT",
+    role: "dialog-accept",
+    font: { kind: "imported", alias: "$Condensed", family: "TG_Condensed" },
+    evidence: "DoInitAction *TOLB066TEXT; accept button on MessageBox hintbar_popup",
+  },
+  {
+    lineCode: "TOLB134TEXT",
+    role: "dialog-warning-title",
+    font: { kind: "imported", alias: "$Fancy", family: "Schreibweise" },
+    evidence: "DoAction *TOLB134TEXT; warning dialog title in DefineEditText 338",
+  },
+  {
+    lineCode: "PMTE102TEXT",
+    role: "dialog-overwrite-warning",
+    font: { kind: "imported", alias: "$Menu", family: "TG_Menu" },
+    evidence: "DoAction *PMTE102TEXT; overwrite save warning body in DefineEditText 337",
+  },
+  {
+    lineCode: "PMTE103TEXT",
+    role: "dialog-profile-warning",
+    font: { kind: "imported", alias: "$Menu", family: "TG_Menu" },
+    evidence: "DoAction *PMTE103TEXT; profile not signed in warning body in DefineEditText 337",
+  },
+  {
+    lineCode: "TCRR002TEXT",
+    role: "dialog-save-device-warning",
+    font: { kind: "imported", alias: "$Menu", family: "TG_Menu" },
+    evidence: "DoAction *TCRR002TEXT; save device warning body in DefineEditText 337",
+  },
+  {
+    lineCode: "PMTE107TEXT",
+    role: "dialog-load-warning",
+    font: { kind: "imported", alias: "$Menu", family: "TG_Menu" },
+    evidence: "DoAction *PMTE107TEXT; chapter load warning body in DefineEditText 337",
+  },
 ];
+
+export const BRUTAL_LEGEND_EDIT_TEXT_ALIGNMENTS = [
+  { id: 337, align: "right" as const, role: "messagebox-message" },
+  { id: 338, align: "right" as const, role: "messagebox-title" },
+] as const;
 
 export const BRUTAL_LEGEND_V2_FIELD_IDS = BRUTAL_LEGEND_V2_MENU_FIELDS.map((field) => field.lineCode);
 

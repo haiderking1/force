@@ -1,0 +1,399 @@
+{
+  "font": "assets/fonts/force.ttf",
+  "referenceDirectory": "out/experiments/brutal-legend-menu-artwork/inventory",
+  "labels": [
+    {
+      "id": "newgame",
+      "text": "لعبة جديدة",
+      "reference": "newgame.png",
+      "color": "#63412f",
+      "trackingPolygon": [
+        [
+          350,
+          100
+        ],
+        [
+          920,
+          100
+        ],
+        [
+          920,
+          660
+        ],
+        [
+          350,
+          660
+        ]
+      ],
+      "erasePolygon": [
+        [
+          491,
+          520
+        ],
+        [
+          525,
+          507
+        ],
+        [
+          575,
+          500
+        ],
+        [
+          609,
+          494
+        ],
+        [
+          642,
+          502
+        ],
+        [
+          686,
+          510
+        ],
+        [
+          692,
+          539
+        ],
+        [
+          652,
+          538
+        ],
+        [
+          620,
+          532
+        ],
+        [
+          572,
+          537
+        ],
+        [
+          500,
+          555
+        ]
+      ],
+      "eraseChannel": 1,
+      "eraseMode": "below",
+      "eraseThreshold": 116,
+      "labelWidth": 183,
+      "labelHeight": 31,
+      "curve": {
+        "left": 500,
+        "baseline": 533,
+        "center": 606,
+        "coefficient": 0.0013
+      },
+      "opacity": 0.9,
+      "minimumWordMatches": 0
+    },
+    {
+      "id": "continue",
+      "text": "متابعة",
+      "reference": "continue.png",
+      "color": "#dfd7b9",
+      "trackingPolygon": [
+        [
+          420,
+          80
+        ],
+        [
+          980,
+          80
+        ],
+        [
+          980,
+          650
+        ],
+        [
+          420,
+          650
+        ]
+      ],
+      "erasePolygon": [
+        [
+          766,
+          372
+        ],
+        [
+          882,
+          377
+        ],
+        [
+          884,
+          404
+        ],
+        [
+          765,
+          397
+        ]
+      ],
+      "eraseChannel": 1,
+      "eraseMode": "above",
+      "eraseThreshold": 130,
+      "labelWidth": 105,
+      "labelHeight": 22,
+      "quad": [
+        [
+          770,
+          375
+        ],
+        [
+          879,
+          380
+        ],
+        [
+          879,
+          401
+        ],
+        [
+          770,
+          395
+        ]
+      ],
+      "opacity": 0.95,
+      "minimumWordMatches": 0
+    },
+    {
+      "id": "options",
+      "text": "الخيارات",
+      "reference": "options.png",
+      "color": "#efefed",
+      "trackingPolygon": [
+        [
+          490,
+          245
+        ],
+        [
+          770,
+          245
+        ],
+        [
+          770,
+          510
+        ],
+        [
+          490,
+          510
+        ]
+      ],
+      "erasePolygon": [
+        [
+          577,
+          311
+        ],
+        [
+          611,
+          293
+        ],
+        [
+          671,
+          278
+        ],
+        [
+          688,
+          301
+        ],
+        [
+          670,
+          340
+        ],
+        [
+          605,
+          354
+        ],
+        [
+          576,
+          339
+        ]
+      ],
+      "eraseChannel": 1,
+      "eraseMode": "above",
+      "eraseThreshold": 110,
+      "labelWidth": 100,
+      "labelHeight": 29,
+      "quad": [
+        [
+          582,
+          319
+        ],
+        [
+          673,
+          292
+        ],
+        [
+          681,
+          317
+        ],
+        [
+          590,
+          345
+        ]
+      ],
+      "opacity": 1,
+      "minimumWordMatches": 3,
+      "exclusiveGroup": "record-face"
+    },
+    {
+      "id": "extras",
+      "text": "إضافات",
+      "reference": "extras.png",
+      "color": "#efefed",
+      "trackingPolygon": [
+        [
+          540,
+          245
+        ],
+        [
+          805,
+          245
+        ],
+        [
+          805,
+          520
+        ],
+        [
+          540,
+          520
+        ]
+      ],
+      "erasePolygon": [
+        [
+          668,
+          295
+        ],
+        [
+          697,
+          324
+        ],
+        [
+          720,
+          332
+        ],
+        [
+          730,
+          352
+        ],
+        [
+          748,
+          365
+        ],
+        [
+          731,
+          380
+        ],
+        [
+          703,
+          371
+        ],
+        [
+          680,
+          350
+        ],
+        [
+          646,
+          327
+        ]
+      ],
+      "eraseChannel": 1,
+      "eraseMode": "above",
+      "eraseThreshold": 110,
+      "labelWidth": 100,
+      "labelHeight": 29,
+      "quad": [
+        [
+          665,
+          302
+        ],
+        [
+          739,
+          359
+        ],
+        [
+          722,
+          379
+        ],
+        [
+          648,
+          322
+        ]
+      ],
+      "opacity": 1,
+      "minimumWordMatches": 3,
+      "exclusiveGroup": "record-face"
+    }
+  ],
+  "movies": {
+    "newgame": [
+      "newgame",
+      "continue"
+    ],
+    "continue": [
+      "newgame",
+      "continue"
+    ],
+    "newgame-continue": [
+      "newgame",
+      "continue"
+    ],
+    "continue-newgame": [
+      "newgame",
+      "continue"
+    ],
+    "continue-load": [
+      "newgame",
+      "continue"
+    ],
+    "load-continue": [
+      "newgame",
+      "continue"
+    ],
+    "title-newgame": [
+      "newgame",
+      "continue"
+    ],
+    "newgame_zoom-in": [
+      "newgame",
+      "continue"
+    ],
+    "continue_zoom-in": [
+      "newgame",
+      "continue"
+    ],
+    "options": [
+      "options"
+    ],
+    "options_zoom-in": [
+      "options"
+    ],
+    "options_zoom-out": [
+      "options"
+    ],
+    "options-skirmish": [
+      "options"
+    ],
+    "skirmish-options": [
+      "options"
+    ],
+    "extras": [
+      "extras"
+    ],
+    "extras_zoom-in": [
+      "extras"
+    ],
+    "extras_zoom-out": [
+      "extras"
+    ],
+    "options-extras": [
+      "options",
+      "extras"
+    ],
+    "extras-options": [
+      "options",
+      "extras"
+    ]
+  },
+  "movieDirectory": "Data/UI/FrontEnd/Movies",
+  "processNames": [
+    "BrutalLegend.exe",
+    "BrutalLegend"
+  ]
+}
