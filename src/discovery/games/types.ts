@@ -1,7 +1,7 @@
 export type GameAdapter = {
   readonly id: string;
   readonly displayName: string;
-  readonly defaultRoot: string | undefined;
+  readonly defaultRoot: (env: Readonly<Record<string, string | undefined>>) => string | undefined;
   readonly headerSuffix: string;
   readonly payloadSuffix: string;
   readonly manifestSuffixes: readonly string[];

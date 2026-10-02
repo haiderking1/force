@@ -1,4 +1,4 @@
-import { mkdir, writeFile, stat } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { openBuddhaPack } from "../../src/archive/buddha/open.ts";
 import { extractBuddhaEntry } from "../../src/archive/buddha/extract.ts";
@@ -11,11 +11,10 @@ import { parseDefineEditText } from "../../src/patch/gfx/edit-text.ts";
 import { parseSwfRect } from "../../src/patch/gfx/rect.ts";
 import { decompressGfx, walkSwfTags } from "../../src/patch/gfx/swf.ts";
 import { replaceStringTableTexts } from "../../src/patch/stringtable/replace.ts";
-import { stagePackReplacements, assertStagedPackEntries } from "../../src/patch/stage/pack-write.ts";
-import { sha256Bytes } from "../../src/patch/hash.ts";
-import { UI_TEXT_CORRECTIONS } from "../../src/patch/games/brutal-legend/ui-text-corrections.ts";
+import { writeVerifiedPack } from "../../src/patch/stage/write-verified-pack.ts";
+import { UI_TEXT_CORRECTIONS } from "../../src/games/brutal-legend/text/ui-corrections.ts";
 import { BRUTAL_LEGEND_GFX_PACK, BRUTAL_LEGEND_FONTS_GFX_ENTRY,
-  BRUTAL_LEGEND_STRING_TABLE_PACK, BRUTAL_LEGEND_STRING_TABLE_ENTRY } from "../../src/patch/games/brutal-legend/config.ts";
+  BRUTAL_LEGEND_STRING_TABLE_PACK, BRUTAL_LEGEND_STRING_TABLE_ENTRY } from "../../src/games/brutal-legend/config.ts";
 
 const [root, output, ...extra] = process.argv.slice(2);
 if (!root || !output || extra.length) throw new Error("Usage: stage-ui-wrap.ts GAME_ROOT NEW_STAGE");
@@ -58,27 +57,12 @@ for (const config of UI_TEXT_CORRECTIONS) {
   }
   if (config.id === "AAAY054TEXT" && !label.encoded.includes("/RockStance/")) throw new Error("Lost binding");
 }
-const headerPath = path.join(gameRoot, BRUTAL_LEGEND_STRING_TABLE_PACK);
-const payloadPath = payloadPathFromHeader(headerPath);
 const pack = await open(BRUTAL_LEGEND_STRING_TABLE_PACK);
 const table = (await extractBuddhaEntry(pack, BRUTAL_LEGEND_STRING_TABLE_ENTRY)).bytes;
 const replaced = replaceStringTableTexts(table, labels.map(l => ({ lineCode: l.id, text: l.encoded })));
 const replacements = [{ identifier: BRUTAL_LEGEND_STRING_TABLE_ENTRY, bytes: replaced.bytes }];
-const rebuilt = await stagePackReplacements({ headerPath, payloadPath, replacements });
-await mkdir(path.join(out, "packs"));
-const stagedHeader = path.join(out, "packs", path.basename(headerPath));
-const stagedPayload = payloadPathFromHeader(stagedHeader);
-await writeFile(stagedHeader, rebuilt.result.header);
-await writeFile(stagedPayload, rebuilt.result.payload);
-await assertStagedPackEntries({ headerPath: stagedHeader, payloadPath: stagedPayload,
-  originalHeaderPath: headerPath, originalPayloadPath: payloadPath, replacements, rebuilt: rebuilt.result });
-const files = [];
-for (const item of [
-  { relative: BRUTAL_LEGEND_STRING_TABLE_PACK, staged: stagedHeader, bytes: rebuilt.result.header, hash: rebuilt.result.originalHeaderSha256 },
-  { relative: payloadPathFromHeader(BRUTAL_LEGEND_STRING_TABLE_PACK), staged: stagedPayload, bytes: rebuilt.result.payload, hash: rebuilt.result.originalPayloadSha256 },
-]) files.push({ relativePath: item.relative, stagedRelativePath: path.relative(out, item.staged),
-  originalSha256: item.hash, originalBytes: (await stat(path.join(gameRoot, item.relative))).size,
-  stagedSha256: sha256Bytes(item.bytes), stagedBytes: item.bytes.length });
+const files = await writeVerifiedPack(gameRoot, out, BRUTAL_LEGEND_STRING_TABLE_PACK, replacements,
+  { createPacksDirectory: true });
 await writeFile(path.join(out, "install-manifest.json"), JSON.stringify({ gameRoot, files,
   fontResourcesVerified: true, fontResources: [{ name: "Installed TG_Condensed and MTL-150", verified: true }] }, null, 2));
 await writeFile(path.join(out, "report.json"), JSON.stringify({ inGameVerified: false,

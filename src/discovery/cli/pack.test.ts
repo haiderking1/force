@@ -1,9 +1,12 @@
-import { expect, test } from "bun:test";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { afterEach, expect, test } from "bun:test";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { runCli } from "../../cli/run.ts";
 import { buildV5Pack } from "../../archive/buddha/build-v5-pack.ts";
+import { createTempDirTracker } from "../../testing/temp-dir.ts";
+
+const tempDirs = createTempDirTracker();
+afterEach(() => tempDirs.cleanup());
 
 function capture() {
   let stdout = "";
@@ -29,8 +32,7 @@ function resource(body: string): Uint8Array {
 }
 
 test("discover pack list and extract write archive JSON without calling fetch", async () => {
-  const dir = path.join(tmpdir(), `force-pack-cli-${Date.now()}`);
-  await mkdir(dir, { recursive: true });
+  const dir = await tempDirs.create("force-pack-cli-");
   const table = resource(
     '1StringTable{LineCodeData={MENU001TEXT=LineCodeData{Text="Continue";VolumeDB=0;SoundCue=;};};}',
   );
@@ -73,8 +75,7 @@ test("discover pack list and extract write archive JSON without calling fetch", 
 });
 
 test("discover pack strings joins subtitle line codes to StringTable text", async () => {
-  const dir = path.join(tmpdir(), `force-pack-strings-${Date.now()}`);
-  await mkdir(dir, { recursive: true });
+  const dir = await tempDirs.create("force-pack-strings-");
   const table = resource(
     '1StringTable{LineCodeData={INTR001GUIT=LineCodeData{Text="Rise and shine.";VolumeDB=0;SoundCue=;};};}',
   );

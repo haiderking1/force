@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { brutalLegendAdapter } from "../games/brutal-legend/adapter.ts";
+import { brutalLegendAdapter } from "../../games/brutal-legend/discovery/adapter.ts";
 import { sortByJevRoles, sortByLocalEvidence, toRankedResource } from "./rank.ts";
 import type { InventoryRecord } from "../inventory/types.ts";
 import type { ResourceEvidence } from "../evidence/types.ts";

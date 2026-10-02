@@ -10,7 +10,7 @@ import { outlineHeading } from "../../src/patch/gfx/outline-heading.ts";
 import { whiteShapeWithNonzeroFill } from "../../src/patch/gfx/nonzero-shape.ts";
 import { parseDefineFont3Tag } from "../../src/patch/gfx/font3/parse.ts";
 import { writeVerifiedPack } from "../../src/patch/stage/write-verified-pack.ts";
-import { SCREEN_LETTERING } from "../../src/patch/games/brutal-legend/screen-lettering.ts";
+import { SCREEN_LETTERING } from "../../src/games/brutal-legend/artwork/screen-lettering.ts";
 
 const [root, output] = process.argv.slice(2);
 if (!root || !output) throw new Error("Usage: stage-screen-lettering.ts GAME_ROOT NEW_STAGE");

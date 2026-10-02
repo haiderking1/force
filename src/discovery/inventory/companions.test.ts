@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { brutalLegendAdapter } from "../games/brutal-legend/adapter.ts";
+import { brutalLegendAdapter } from "../../games/brutal-legend/discovery/adapter.ts";
 import { linkCompanions, packStem } from "./companions.ts";
 
 test("links .~h/.~p companions to a case-insensitive manifest stem", () => {

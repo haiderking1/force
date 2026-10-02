@@ -4,6 +4,7 @@ import { isRenderingError, RenderingError } from "../rendering/errors.ts";
 import { generateHtmlPreview, generateSvgPreview } from "../rendering/preview/svg.ts";
 import type { LayoutOptions } from "../rendering/engine.ts";
 import type { CliIo } from "./io.ts";
+import { RENDER_OPTIONS } from "./usage.ts";
 
 export type RenderCliArgs = {
   readonly command: "render";
@@ -34,23 +35,7 @@ export async function runRenderCommand(args: RenderCliArgs, io: CliIo): Promise<
     io.stdout.write(`Usage: force render --font <path> --text <string> [options]
 
 Options:
-  --font <path>             Path to TTF/OTF font (default: assets/fonts/force.ttf)
-  --text <text>             Logical text to render
-  --input <file>            Read text from file
-  --width <pixels>          Target box width (default: 400)
-  --size <pixels>           Font size in pixels (default: 24)
-  --height <pixels>         Target box height limit
-  --minimum-size <pixels>   Minimum font size for automatic fitting
-  --line-gap <pixels>       Line gap between consecutive lines
-  --padding <pixels>        Horizontal padding
-  --direction <ltr|rtl>     Base paragraph direction (default: rtl)
-  --align <left|center|right> Text alignment (default: right for RTL, left for LTR)
-  --placeholder <policy>    Placeholder policy: "sample:<text>", "fixed:<width>", or "warn"
-  --expand-escapes          Interpret literal \\n as real newlines
-  --out <file>              Output SVG or JSON file depending on extension
-  --svg <file>              Write visual SVG vector preview file
-  --html <file>             Write HTML inspection preview file
-  --json                    Output structured layout JSON to stdout
+${RENDER_OPTIONS}
   -h, --help                Show this help
 `);
     return 0;

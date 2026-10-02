@@ -56,7 +56,7 @@ export function appendGlyphsToNamedFonts(
   }
   const missing = names.filter((name) => !rewritten.some((item) => item.name === name));
   if (missing.length > 0) {
-    throw new PatchError("GFX", `englishfonts is missing DefineFont3 families ${missing.join(", ")}`);
+    throw new PatchError("GFX", `GFX is missing DefineFont3 families ${missing.join(", ")}`);
   }
   return { next: rebuildGfxFile(bytes, replacements), rewritten };
 }

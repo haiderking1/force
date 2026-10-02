@@ -1,14 +1,16 @@
-import { expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import { mkdir, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import path from "node:path";
-import { brutalLegendAdapter } from "../games/brutal-legend/adapter.ts";
+import { brutalLegendAdapter } from "../../games/brutal-legend/discovery/adapter.ts";
 import { walkGameTree } from "./walk.ts";
+import { createTempDirTracker } from "../../testing/temp-dir.ts";
+
+const tempDirs = createTempDirTracker();
+afterEach(() => tempDirs.cleanup());
 
 test("records symlink escapes and does not follow them", async () => {
-  const root = path.join(tmpdir(), `force-walk-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  const outside = path.join(tmpdir(), `force-escape-${Date.now()}`);
-  await mkdir(root, { recursive: true });
+  const root = await tempDirs.create("force-walk-");
+  const outside = path.join(await tempDirs.create("force-escape-"), "secret.cfg");
   await writeFile(path.join(root, "Language.cfg"), "language = 'enUS'\n");
   await writeFile(outside, "secret\n");
   await symlink(outside, path.join(root, "escape.cfg"));
@@ -18,7 +20,7 @@ test("records symlink escapes and does not follow them", async () => {
 });
 
 test("follows a symlink that stays inside the game root", async () => {
-  const root = path.join(tmpdir(), `force-walk-in-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const root = await tempDirs.create("force-walk-in-");
   await mkdir(path.join(root, "Data"), { recursive: true });
   await writeFile(path.join(root, "Data", "Language.cfg"), "language = 'enUS'\n");
   await symlink(path.join(root, "Data", "Language.cfg"), path.join(root, "alias.cfg"));

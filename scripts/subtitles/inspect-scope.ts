@@ -1,4 +1,6 @@
+import { parseTranslationArgs } from "./cli/translation-args.ts";
 import path from "node:path";
+import { resolveBrutalLegendRoot } from "../../src/games/brutal-legend/root.ts";
 import { openBuddhaPack } from "../../src/archive/buddha/open.ts";
 import { extractBuddhaEntry } from "../../src/archive/buddha/extract.ts";
 import { payloadPathFromHeader } from "../../src/archive/companion-path.ts";
@@ -6,23 +8,30 @@ import { decodeVidSubtitles } from "../../src/resources/subtitles/decode.ts";
 import { decodeStringTable } from "../../src/resources/stringtable/decode.ts";
 import { parseDefineEditText } from "../../src/patch/gfx/edit-text.ts";
 import { parseSwfRect } from "../../src/patch/gfx/rect.ts";
-import { decompressGfx, walkSwfTags, SWF_TAG_NAMES, readU16Le, readU32Le } from "../../src/patch/gfx/swf.ts";
+import { decompressGfx, walkSwfTags, SWF_TAG_NAMES } from "../../src/patch/gfx/swf.ts";
+import { walkSpriteTags } from "../../src/patch/gfx/sprite-tags.ts";
 import { parseDefineFont3Tag } from "../../src/patch/gfx/font3/parse.ts";
-import { mergeTranslations } from "../../src/patch/translations/load.ts";
+import { loadTranslations } from "../../src/patch/translations/load.ts";
 import { tokenizeGameSyntax } from "../../src/rendering/syntax/tokens.ts";
 import { collectTokensInText } from "../../src/translation/tokens/scan.ts";
 import { Shaper } from "../../src/rendering/font/shaper.ts";
 import {
-  BRUTAL_LEGEND_DEFAULT_ROOT,
   BRUTAL_LEGEND_FONTS_GFX_ENTRY,
   BRUTAL_LEGEND_GFX_PACK,
   BRUTAL_LEGEND_STRING_TABLE_ENTRY,
   BRUTAL_LEGEND_STRING_TABLE_PACK,
-  BRUTAL_LEGEND_TRANSLATION_DIRS,
-} from "../../src/patch/games/brutal-legend/config.ts";
-import { SUBTITLE_ASSET, SUBTITLE_TIMING_PACK } from "../../src/patch/games/brutal-legend/subtitle-profile.ts";
+} from "../../src/games/brutal-legend/config.ts";
+import { SUBTITLE_ASSET, SUBTITLE_TIMING_PACK } from "../../src/games/brutal-legend/rendering/subtitle-profile.ts";
 
-const gameRoot = process.argv[2] ?? BRUTAL_LEGEND_DEFAULT_ROOT;
+const args = parseTranslationArgs(process.argv.slice(2), {
+  usage: "Usage: inspect-scope.ts [GAME_ROOT] --translations <file> [--translations <file> ...] --corpus <file>",
+  minPositionals: 0,
+  maxPositionals: 1,
+  allowCorpus: true,
+});
+if (args.corpus === undefined) throw new Error("inspect-scope.ts requires --corpus <file>");
+const corpusPath = path.resolve(args.corpus);
+const gameRoot = resolveBrutalLegendRoot(process.env, args.positionals[0]);
 
 function open(relative: string) {
   const headerPath = path.join(gameRoot, relative);
@@ -33,11 +42,8 @@ function twipsToPx(value: number): number {
   return value / 20;
 }
 
-const translations = mergeTranslations(
-  await Promise.all(
-    BRUTAL_LEGEND_TRANSLATION_DIRS.map(async (file) => ({ path: file, raw: await Bun.file(file).json() })),
-  ),
-);
+const translationInputs = await loadTranslations(args.translations);
+const translations = translationInputs.translations;
 
 const timingPack = await open(SUBTITLE_TIMING_PACK);
 const subtitleEntries = timingPack.entries.filter((entry) => (entry.name ?? entry.identifier).startsWith("gameplay/subtitles/"));
@@ -101,32 +107,10 @@ const frameLabels = subtitleWalk.tags
   .filter((tag) => tag.type === 43)
   .map((tag) => new TextDecoder("latin1").decode(tag.data.subarray(0, tag.data.indexOf(0))));
 
-function walkRawTags(data: Uint8Array): { type: number; data: Uint8Array }[] {
-  const tags: { type: number; data: Uint8Array }[] = [];
-  let pos = 0;
-  while (pos + 2 <= data.length) {
-    const header = readU16Le(data, pos);
-    const type = header >> 6;
-    let length = header & 0x3f;
-    let headerSize = 2;
-    if (length === 0x3f) {
-      length = readU32Le(data, pos + 2);
-      headerSize = 6;
-    }
-    const start = pos + headerSize;
-    tags.push({ type, data: data.subarray(start, start + length) });
-    pos = start + length;
-    if (type === 0) break;
-  }
-  return tags;
-}
-
 const sprites = subtitleWalk.tags
   .filter((tag) => tag.type === 39)
   .map((tag) => {
-    const id = readU16Le(tag.data, 0);
-    const frameCount = readU16Le(tag.data, 2);
-    const inner = walkRawTags(tag.data.subarray(4));
+    const { id, frameCount, tags: inner } = walkSpriteTags(tag.data);
     return {
       id,
       frameCount,
@@ -176,7 +160,7 @@ try {
   console.error("DLC pack:", error instanceof Error ? error.message : error);
 }
 
-const corpus = (await Bun.file("out/archive/brutal-legend/strings.json").json()) as {
+const corpus = (await Bun.file(corpusPath).json()) as {
   recordId?: string;
   entryType?: string;
   text?: string;
@@ -239,6 +223,7 @@ const remainingSpokenTranslated = remainingSpoken.filter((record) => translation
 shaper.destroy();
 
 const report = {
+  translationProvenance: translationInputs.provenance,
   translations: translations.size,
   subtitleEntries: subtitleEntries.map((entry) => entry.identifier),
   entryCueCounts,
@@ -252,7 +237,7 @@ const report = {
   mainTable: { records: mainTable.records.length, spoken: spoken.length, alreadyPua: alreadyPua.length, alreadyPuaIds: alreadyPua.map((record) => record.lineCode) },
   remainingSpoken: { total: remainingSpoken.length, translated: remainingSpokenTranslated.length },
   dlcTable,
-  corpus: { records: corpus.length, types: [...new Set(corpus.map((row) => row.entryType))] },
+  corpus: { path: corpusPath, records: corpus.length, types: [...new Set(corpus.map((row) => row.entryType))] },
   subtitleGfx: {
     stage: { ...stageRect, widthPx: twipsToPx(stageRect.xMax - stageRect.xMin), heightPx: twipsToPx(stageRect.yMax - stageRect.yMin) },
     frameLabels,

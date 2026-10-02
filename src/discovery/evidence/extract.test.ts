@@ -1,11 +1,14 @@
-import { expect, test } from "bun:test";
-import { mkdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { afterEach, expect, test } from "bun:test";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { brutalLegendAdapter } from "../games/brutal-legend/adapter.ts";
+import { brutalLegendAdapter } from "../../games/brutal-legend/discovery/adapter.ts";
 import { EVIDENCE_READ_BYTES } from "./bounds.ts";
 import { extractEvidence } from "./extract.ts";
 import type { InventoryRecord } from "../inventory/types.ts";
+import { createTempDirTracker } from "../../testing/temp-dir.ts";
+
+const tempDirs = createTempDirTracker();
+afterEach(() => tempDirs.cleanup());
 
 function record(relativePath: string, size: number, kind: InventoryRecord["kind"], excluded = false): InventoryRecord {
   return {
@@ -23,8 +26,7 @@ function record(relativePath: string, size: number, kind: InventoryRecord["kind"
 }
 
 test("keeps manifest links and real line offsets", async () => {
-  const root = path.join(tmpdir(), `force-extract-${Date.now()}`);
-  await mkdir(root, { recursive: true });
+  const root = await tempDirs.create("force-extract-");
   const text = "==== Loc_enUS.~p ====\r\nPackfile loc_enus.~p\r\nstringtable/brutallegend:Story\n";
   await writeFile(path.join(root, "loc_enus.txt"), text);
   const manifest = record("loc_enus.txt", text.length, "pack-manifest");
@@ -41,8 +43,7 @@ test("keeps manifest links and real line offsets", async () => {
 });
 
 test("does not invent pack offsets and respects the read bound", async () => {
-  const root = path.join(tmpdir(), `force-bound-${Date.now()}`);
-  await mkdir(root, { recursive: true });
+  const root = await tempDirs.create("force-bound-");
   const prefix = Buffer.alloc(EVIDENCE_READ_BYTES, 0x00);
   const hidden = Buffer.from("HiddenDialogueLine");
   await writeFile(path.join(root, "blob.bin"), Buffer.concat([prefix, hidden]));

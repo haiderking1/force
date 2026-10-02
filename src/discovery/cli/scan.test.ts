@@ -1,9 +1,12 @@
-import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { afterEach, expect, test } from "bun:test";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { runCli } from "../../cli/run.ts";
 import { JEV_ENV } from "../classify/config.ts";
+import { createTempDirTracker } from "../../testing/temp-dir.ts";
+
+const tempDirs = createTempDirTracker();
+afterEach(() => tempDirs.cleanup());
 
 function capture() {
   let stdout = "";
@@ -18,7 +21,7 @@ function capture() {
 }
 
 test("discover scan writes a local report and never calls fetch", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "force-scan-"));
+  const root = await tempDirs.create("force-scan-");
   await mkdir(path.join(root, "Win", "Packs"), { recursive: true });
   await writeFile(path.join(root, "Win", "Packs", "Loc_enUS.~h"), "dfpfxxxx");
   await writeFile(path.join(root, "Win", "Packs", "Loc_enUS.~p"), "payload");
@@ -56,7 +59,7 @@ test("discover scan writes a local report and never calls fetch", async () => {
 });
 
 test("discover classify refuses to run without FORCE_JEV_API_KEY and does not call fetch", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "force-cls-"));
+  const root = await tempDirs.create("force-cls-");
   const reportPath = path.join(root, "scan.json");
   await writeFile(
     reportPath,

@@ -1,4 +1,8 @@
+import { isRecord } from "../../shared/validation/is-record.ts";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { PatchError } from "../errors.ts";
+import { sha256Bytes } from "../hash.ts";
 
 export type SavedTranslation = {
   readonly id: string;
@@ -6,10 +10,6 @@ export type SavedTranslation = {
   readonly sourceText?: string;
   readonly sourceFile: string;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function readIdText(value: unknown): { readonly id: string; readonly text: string; readonly sourceText?: string } | undefined {
   if (!isRecord(value) || typeof value.id !== "string" || typeof value.text !== "string") {
@@ -53,14 +53,63 @@ export function parseTranslationFile(sourceFile: string, raw: unknown): readonly
   throw new PatchError("TRANSLATION", `Unrecognized translation file ${sourceFile}`);
 }
 
-export function mergeTranslations(files: readonly { readonly path: string; readonly raw: unknown }[]): Map<string, SavedTranslation> {
-  const merged = new Map<string, SavedTranslation>();
-  for (const file of files) {
-    for (const row of parseTranslationFile(file.path, file.raw)) {
-      if (!merged.has(row.id)) {
-        merged.set(row.id, row);
-      }
-    }
+function mergeRows(merged: Map<string, SavedTranslation>, rows: readonly SavedTranslation[]): void {
+  for (const row of rows) {
+    if (!merged.has(row.id)) merged.set(row.id, row);
   }
-  return merged;
+}
+
+export type TranslationInput = {
+  readonly kind: "translations" | "candidates";
+  readonly path: string;
+  readonly sha256: string;
+  readonly selectedCount: number;
+};
+
+export type LoadedTranslations = {
+  readonly translations: ReadonlyMap<string, SavedTranslation>;
+  readonly provenance: {
+    /** Inputs in precedence order, including inputs that selected no ids. */
+    readonly inputs: readonly TranslationInput[];
+    /** Resolved winning input path for every selected id. */
+    readonly selectedSources: Readonly<Record<string, string>>;
+  };
+};
+
+/** Candidate files precede translation files; the first row for an id wins. */
+export async function loadTranslations(
+  translationPaths: readonly string[],
+  candidatePaths: readonly string[] = [],
+): Promise<LoadedTranslations> {
+  const translations = new Map<string, SavedTranslation>();
+  const inputs: TranslationInput[] = [];
+  const ordered = [
+    ...candidatePaths.map((file) => ({ kind: "candidates" as const, file })),
+    ...translationPaths.map((file) => ({ kind: "translations" as const, file })),
+  ];
+  for (const { kind, file } of ordered) {
+    const resolved = path.resolve(file);
+    let bytes: Uint8Array;
+    try {
+      bytes = await readFile(resolved);
+    } catch (error) {
+      throw new PatchError("TRANSLATION", `Cannot read translation input ${resolved}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    let raw: unknown;
+    try {
+      raw = JSON.parse(new TextDecoder().decode(bytes));
+    } catch (error) {
+      throw new PatchError("TRANSLATION", `Cannot parse translation input ${resolved}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const before = translations.size;
+    mergeRows(translations, parseTranslationFile(resolved, raw));
+    inputs.push({ kind, path: resolved, sha256: sha256Bytes(bytes), selectedCount: translations.size - before });
+  }
+  return {
+    translations,
+    provenance: {
+      inputs,
+      selectedSources: Object.fromEntries([...translations].map(([id, row]) => [id, row.sourceFile])),
+    },
+  };
 }

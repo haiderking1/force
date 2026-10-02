@@ -8,12 +8,13 @@ import { assertGameNotRunning } from "./process.ts";
 export async function restoreFromBackup(options: {
   readonly backupDir: string;
   readonly confirm: boolean;
+  readonly processNames: readonly string[];
   readonly gameRoot?: string;
 }): Promise<{ readonly restored: readonly FileChecksum[] }> {
   if (!options.confirm) {
     throw new PatchError("SAFETY", "restore requires an explicit --confirm flag");
   }
-  await assertGameNotRunning();
+  await assertGameNotRunning(options.processNames);
   const raw = JSON.parse(await readFile(path.join(options.backupDir, "manifest.json"), "utf8")) as {
     gameRoot?: string;
     files?: FileChecksum[];

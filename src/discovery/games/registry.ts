@@ -1,5 +1,5 @@
 import { DiscoveryError } from "../errors.ts";
-import { brutalLegendAdapter } from "./brutal-legend/adapter.ts";
+import { brutalLegendAdapter } from "../../games/brutal-legend/discovery/adapter.ts";
 import type { GameAdapter } from "./types.ts";
 
 const ADAPTERS: Readonly<Record<string, GameAdapter>> = {

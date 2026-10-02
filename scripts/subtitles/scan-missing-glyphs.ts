@@ -1,4 +1,6 @@
+import { parseTranslationArgs } from "./cli/translation-args.ts";
 import path from "node:path";
+import { resolveBrutalLegendRoot } from "../../src/games/brutal-legend/root.ts";
 import { extractBuddhaEntry } from "../../src/archive/buddha/extract.ts";
 import { openBuddhaPack } from "../../src/archive/buddha/open.ts";
 import { payloadPathFromHeader } from "../../src/archive/companion-path.ts";
@@ -6,23 +8,23 @@ import { containsPrivateUse, unescapeCorpusText } from "../../src/patch/font/dis
 import { splitGameSegments } from "../../src/patch/font/game-segments.ts";
 import { replacePersianGaf } from "../../src/patch/font/persian-gaf.ts";
 import {
-  BRUTAL_LEGEND_DEFAULT_ROOT,
   BRUTAL_LEGEND_DLC_PACK,
   BRUTAL_LEGEND_DLC_STRING_TABLE_ENTRY,
   BRUTAL_LEGEND_STRING_TABLE_ENTRY,
   BRUTAL_LEGEND_STRING_TABLE_PACK,
-  BRUTAL_LEGEND_TRANSLATION_DIRS,
-} from "../../src/patch/games/brutal-legend/config.ts";
+} from "../../src/games/brutal-legend/config.ts";
 import { decodeStringTable } from "../../src/resources/stringtable/decode.ts";
-import { mergeTranslations } from "../../src/patch/translations/load.ts";
+import { loadTranslations } from "../../src/patch/translations/load.ts";
 import { Shaper } from "../../src/rendering/font/shaper.ts";
 
-const gameRoot = process.argv[2] ?? BRUTAL_LEGEND_DEFAULT_ROOT;
-const translations = mergeTranslations(
-  await Promise.all(
-    BRUTAL_LEGEND_TRANSLATION_DIRS.map(async (file) => ({ path: file, raw: await Bun.file(file).json() })),
-  ),
-);
+const args = parseTranslationArgs(process.argv.slice(2), {
+  usage: "Usage: scan-missing-glyphs.ts [GAME_ROOT] --translations <file> [--translations <file> ...]",
+  minPositionals: 0,
+  maxPositionals: 1,
+});
+const gameRoot = resolveBrutalLegendRoot(process.env, args.positionals[0]);
+const translationInputs = await loadTranslations(args.translations);
+const translations = translationInputs.translations;
 
 function open(relative: string) {
   return openBuddhaPack({

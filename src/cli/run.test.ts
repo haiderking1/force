@@ -1,7 +1,7 @@
-import { expect, test } from "bun:test";
-import { mkdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { afterEach, expect, test } from "bun:test";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createTempDirTracker } from "../testing/temp-dir.ts";
 import { TRANSLATION_ENV } from "../translation/config/schema.ts";
 import type { FetchLike } from "../translation/http/openai-compatible-client.ts";
 import {
@@ -13,6 +13,9 @@ import {
 } from "../translation/http/fixtures/completions.ts";
 import { CLINE_FREE_MODEL } from "../translation/providers/cline-free/contract.ts";
 import { runCli } from "./run.ts";
+
+const tempDirs = createTempDirTracker();
+afterEach(() => tempDirs.cleanup());
 
 function capture() {
   let stdout = "";
@@ -197,8 +200,7 @@ function extractedRecord(id: string, text: string, entryType = "StringTable") {
 }
 
 async function writeExtracted(records: unknown[]): Promise<{ input: string; out: string }> {
-  const dir = path.join(tmpdir(), `force-cli-file-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  await mkdir(dir, { recursive: true });
+  const dir = await tempDirs.create("force-cli-file-");
   const input = path.join(dir, "strings.json");
   await writeFile(input, `${JSON.stringify(records)}\n`);
   return { input, out: path.join(dir, "out") };

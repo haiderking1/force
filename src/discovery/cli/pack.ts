@@ -1,3 +1,4 @@
+import { writeJson } from "../../shared/fs/write-json.ts";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { payloadPathFromHeader, packStemFromHeader } from "../../archive/companion-path.ts";
@@ -13,6 +14,7 @@ import { decodeExtractedText } from "../../resources/text-records.ts";
 import type { DiscoverPackExtractArgs, DiscoverPackListArgs, DiscoverPackStringsArgs } from "./parse.ts";
 
 export type PackCommandIo = {
+  readonly env: Readonly<Record<string, string | undefined>>;
   readonly stdout: { write(text: string): unknown };
 };
 
@@ -26,11 +28,6 @@ function defaultExtractDir(headerPath: string): string {
 
 function defaultStringsDir(): string {
   return path.join("out", "archive", "brutal-legend");
-}
-
-async function writeJson(filePath: string, value: unknown): Promise<void> {
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
 function wrapArchive(error: unknown): never {
@@ -87,7 +84,7 @@ export async function runDiscoverPackStrings(args: DiscoverPackStringsArgs, io: 
   try {
     let root = args.root;
     if (root === undefined && args.header === undefined && args.game !== undefined) {
-      root = getGameAdapter(args.game).defaultRoot;
+      root = getGameAdapter(args.game).defaultRoot(io.env);
     }
     const result = await extractPackStrings({
       root,

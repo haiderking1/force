@@ -1,3 +1,4 @@
+import { parseTranslationArgs } from "./cli/translation-args.ts";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { openBuddhaPack } from "../../src/archive/buddha/open.ts";
@@ -9,7 +10,7 @@ import { planPuaGameText } from "../../src/patch/font/pua-game-text.ts";
 import { remapToInstalledGlyphs } from "../../src/patch/font/remap-glyphs.ts";
 import { missingGlyphs } from "../../src/patch/font/missing-glyphs.ts";
 import { appendGlyphsToNamedFonts } from "../../src/patch/stage/append-fonts.ts";
-import { mergeTranslations } from "../../src/patch/translations/load.ts";
+import { loadTranslations } from "../../src/patch/translations/load.ts";
 import { parseDefineFont3Tag } from "../../src/patch/gfx/font3/parse.ts";
 import { parseDefineEditText } from "../../src/patch/gfx/edit-text.ts";
 import { decompressGfx, walkSwfTags, readU16Le } from "../../src/patch/gfx/swf.ts";
@@ -17,12 +18,19 @@ import { rebuildGfxFile } from "../../src/patch/gfx/rewrite.ts";
 import { outlineHeading } from "../../src/patch/gfx/outline-heading.ts";
 import { replaceStringTableTexts } from "../../src/patch/stringtable/replace.ts";
 import { writeVerifiedPack } from "../../src/patch/stage/write-verified-pack.ts";
-import { SETTINGS_TEXT, SETTINGS_MAIN_IDS, SETTINGS_STATIC_TEXT, settingsProfile } from "../../src/patch/games/brutal-legend/settings-text.ts";
-import { BRUTAL_LEGEND_TRANSLATION_DIRS, BRUTAL_LEGEND_GFX_PACK, BRUTAL_LEGEND_FONTS_GFX_ENTRY,
-  BRUTAL_LEGEND_STRING_TABLE_PACK, BRUTAL_LEGEND_STRING_TABLE_ENTRY } from "../../src/patch/games/brutal-legend/config.ts";
+import { SETTINGS_TEXT, SETTINGS_MAIN_IDS, SETTINGS_STATIC_TEXT, settingsProfile } from "../../src/games/brutal-legend/menu/settings-text.ts";
+import { BRUTAL_LEGEND_GFX_PACK, BRUTAL_LEGEND_FONTS_GFX_ENTRY,
+  BRUTAL_LEGEND_STRING_TABLE_PACK, BRUTAL_LEGEND_STRING_TABLE_ENTRY } from "../../src/games/brutal-legend/config.ts";
 
-const [root, output, ...extra] = process.argv.slice(2);
-if (!root || !output || extra.length) throw new Error("Usage: stage-settings.ts GAME_ROOT NEW_STAGE");
+const usage = "Usage: stage-settings.ts GAME_ROOT NEW_STAGE --translations <file> [--translations <file> ...]";
+const args = parseTranslationArgs(process.argv.slice(2), { usage, minPositionals: 2, maxPositionals: 2 });
+const [root, output] = args.positionals;
+if (!root || !output) throw new Error(usage);
+const translationInputs = await loadTranslations(args.translations);
+const translations = translationInputs.translations;
+// This named first layer preserves the settings-specific text before file inputs.
+const settingsOverrides = new Map(Object.entries(SETTINGS_TEXT));
+const selectedTranslationSources = new Map<string, string>();
 const gameRoot = path.resolve(root), out = path.resolve(output);
 await mkdir(path.dirname(out), { recursive: true }); await mkdir(out); await mkdir(path.join(out, "packs"));
 const open = (header: string) => openBuddhaPack({ headerPath: path.join(gameRoot, header),
@@ -32,11 +40,13 @@ const pcEntry = "stringtable/blpc_enus", pauseEntry = "data/ui/pause/opt/pause.g
 const pcBytes = (await extractBuddhaEntry(strings, pcEntry)).bytes;
 const pc = decodeStringTable(pcBytes);
 const mainBytes = (await extractBuddhaEntry(strings, BRUTAL_LEGEND_STRING_TABLE_ENTRY)).bytes;
-const translations = mergeTranslations(await Promise.all(BRUTAL_LEGEND_TRANSLATION_DIRS.map(async file =>
-  ({ path: file, raw: await Bun.file(file).json() }))));
 const requests = [...pc.records.map(r => r.lineCode), ...SETTINGS_MAIN_IDS].map(id => {
-  const text = SETTINGS_TEXT[id] ?? translations.get(id)?.text;
+  const override = settingsOverrides.get(id);
+  const translation = translations.get(id);
+  const text = override ?? translation?.text;
   if (!text) throw new Error(`Missing translation ${id}`);
+  if (override !== undefined) selectedTranslationSources.set(id, "SETTINGS_TEXT");
+  else if (translation !== undefined) selectedTranslationSources.set(id, translation.sourceFile);
   return { id, text, profile: settingsProfile(id, text) };
 });
 for (const field of SETTINGS_STATIC_TEXT) requests.push({ id: `static-${field.field}`, text: field.text,
@@ -107,6 +117,10 @@ const files = [
 await writeFile(path.join(out, "install-manifest.json"), JSON.stringify({ gameRoot, files,
   fontResourcesVerified: true, fontResources: fonts.map(f => ({ name: f.name, verified: true })) }, null, 2));
 await writeFile(path.join(out, "report.json"), JSON.stringify({ inGameVerified: false,
+  translationFileProvenance: translationInputs.provenance,
+  translationLayers: [{ kind: "overrides", name: "SETTINGS_TEXT", translations: SETTINGS_TEXT },
+    ...translationInputs.provenance.inputs],
+  selectedTranslationSources: Object.fromEntries(selectedTranslationSources),
   pcRecords: pcLabels.length, correctedMainRecords: mainLabels.length, optionsHeading: "الخيارات", addedGlyphs: added.length,
   staticFields: SETTINGS_STATIC_TEXT, movieArtworkUntouched: true,
   labels: labels.map(l => ({ id: l.id, logical: l.logical, encoded: l.encoded, widths: l.widths,

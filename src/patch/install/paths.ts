@@ -1,10 +1,6 @@
 import path from "node:path";
 import { PatchError } from "../errors.ts";
 
-export function resolveExisting(filePath: string): string {
-  return path.resolve(filePath);
-}
-
 export function assertBackupOutsideGame(gameRoot: string, backupDir: string): void {
   const game = path.resolve(gameRoot);
   const backup = path.resolve(backupDir);

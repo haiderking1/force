@@ -1,73 +1,36 @@
 import path from "node:path";
+import { resolveBrutalLegendRoot } from "../../src/games/brutal-legend/root.ts";
 import { openBuddhaPack } from "../../src/archive/buddha/open.ts";
 import { extractBuddhaEntry } from "../../src/archive/buddha/extract.ts";
 import { payloadPathFromHeader } from "../../src/archive/companion-path.ts";
 import { parseSwfRect } from "../../src/patch/gfx/rect.ts";
-import { BitReader } from "../../src/patch/gfx/bits.ts";
-import { decompressGfx, walkSwfTags, readU16Le, readU32Le, SWF_TAG_NAMES } from "../../src/patch/gfx/swf.ts";
-import { BRUTAL_LEGEND_DEFAULT_ROOT, BRUTAL_LEGEND_GFX_PACK } from "../../src/patch/games/brutal-legend/config.ts";
-import { SUBTITLE_ASSET } from "../../src/patch/games/brutal-legend/subtitle-profile.ts";
+import { parseSwfMatrix, type SwfMatrix } from "../../src/patch/gfx/matrix.ts";
+import { walkSpriteTags } from "../../src/patch/gfx/sprite-tags.ts";
+import { decompressGfx, walkSwfTags, readU16Le } from "../../src/patch/gfx/swf.ts";
+import { BRUTAL_LEGEND_GFX_PACK } from "../../src/games/brutal-legend/config.ts";
+import { SUBTITLE_ASSET } from "../../src/games/brutal-legend/rendering/subtitle-profile.ts";
 
-const gameRoot = process.argv[2] ?? BRUTAL_LEGEND_DEFAULT_ROOT;
+const gameRoot = resolveBrutalLegendRoot(process.env, process.argv[2]);
 const headerPath = path.join(gameRoot, BRUTAL_LEGEND_GFX_PACK);
 const gfx = await openBuddhaPack({ headerPath, payloadPath: path.join(gameRoot, payloadPathFromHeader(BRUTAL_LEGEND_GFX_PACK)) });
 const bytes = (await extractBuddhaEntry(gfx, SUBTITLE_ASSET)).bytes;
 const body = decompressGfx(bytes).body;
 const walk = walkSwfTags(body);
 
-function walkRawTags(data: Uint8Array): { type: number; offset: number; data: Uint8Array }[] {
-  const tags: { type: number; offset: number; data: Uint8Array }[] = [];
-  let pos = 0;
-  while (pos + 2 <= data.length) {
-    const header = readU16Le(data, pos);
-    const type = header >> 6;
-    let length = header & 0x3f;
-    let headerSize = 2;
-    if (length === 0x3f) {
-      length = readU32Le(data, pos + 2);
-      headerSize = 6;
-    }
-    const start = pos + headerSize;
-    tags.push({ type, offset: pos, data: data.subarray(start, start + length) });
-    pos = start + length;
-    if (type === 0) break;
-  }
-  return tags;
-}
-
-function parseMatrix(data: Uint8Array, offset: number) {
-  const reader = new BitReader(data, offset);
-  const hasScale = reader.readUB(1) === 1;
-  let scaleX = 1;
-  let scaleY = 1;
-  if (hasScale) {
-    const bits = reader.readUB(5);
-    scaleX = reader.readSB(bits) / 65536;
-    scaleY = reader.readSB(bits) / 65536;
-  }
-  const hasRotate = reader.readUB(1) === 1;
-  let rotate0 = 0;
-  let rotate1 = 0;
-  if (hasRotate) {
-    const bits = reader.readUB(5);
-    rotate0 = reader.readSB(bits) / 65536;
-    rotate1 = reader.readSB(bits) / 65536;
-  }
-  const translateBits = reader.readUB(5);
-  const translateX = reader.readSB(translateBits);
-  const translateY = reader.readSB(translateBits);
+function matrixReport(matrix: SwfMatrix | undefined) {
+  if (matrix === undefined) return undefined;
   return {
-    hasScale,
-    scaleX,
-    scaleY,
-    hasRotate,
-    rotate0,
-    rotate1,
-    translateX,
-    translateY,
-    translateXPx: translateX / 20,
-    translateYPx: translateY / 20,
-    bytes: reader.consumedBytes(),
+    hasScale: matrix.hasScale,
+    scaleX: matrix.scaleX / 65536,
+    scaleY: matrix.scaleY / 65536,
+    hasRotate: matrix.hasRotate,
+    rotate0: matrix.rotate0 / 65536,
+    rotate1: matrix.rotate1 / 65536,
+    translateX: matrix.translateX,
+    translateY: matrix.translateY,
+    translateXPx: matrix.translateX / 20,
+    translateYPx: matrix.translateY / 20,
+    bytes: matrix.bytes.length,
   };
 }
 
@@ -88,8 +51,8 @@ function parsePlaceObject(tagType: number, data: Uint8Array) {
     }
     let matrix;
     if (hasMatrix) {
-      matrix = parseMatrix(data, pos);
-      pos += matrix.bytes;
+      matrix = parseSwfMatrix(data, pos);
+      pos += matrix.bytes.length;
     }
     let name: string | undefined;
     if (hasName) {
@@ -97,7 +60,7 @@ function parsePlaceObject(tagType: number, data: Uint8Array) {
       while (pos < data.length && data[pos] !== 0) pos += 1;
       name = new TextDecoder("latin1").decode(data.subarray(start, pos));
     }
-    return { tagType, flags, depth, hasCharacter, hasMatrix, characterId, matrix, name };
+    return { tagType, flags, depth, hasCharacter, hasMatrix, characterId, matrix: matrixReport(matrix), name };
   }
   const flags1 = data[0];
   const flags2 = data[1];
@@ -115,8 +78,8 @@ function parsePlaceObject(tagType: number, data: Uint8Array) {
   }
   let matrix;
   if (hasMatrix) {
-    matrix = parseMatrix(data, pos);
-    pos += matrix.bytes;
+    matrix = parseSwfMatrix(data, pos);
+    pos += matrix.bytes.length;
   }
   let name: string | undefined;
   if (hasName) {
@@ -124,14 +87,12 @@ function parsePlaceObject(tagType: number, data: Uint8Array) {
     while (pos < data.length && data[pos] !== 0) pos += 1;
     name = new TextDecoder("latin1").decode(data.subarray(start, pos));
   }
-  return { tagType, flags1, flags2, depth, hasCharacter, hasMatrix, characterId, matrix, name };
+  return { tagType, flags1, flags2, depth, hasCharacter, hasMatrix, characterId, matrix: matrixReport(matrix), name };
 }
 
 const rootPlaces = walk.tags.filter((tag) => tag.type === 26 || tag.type === 70).map((tag) => parsePlaceObject(tag.type, tag.data));
 const sprites = walk.tags.filter((tag) => tag.type === 39).map((tag) => {
-  const id = readU16Le(tag.data, 0);
-  const frameCount = readU16Le(tag.data, 2);
-  const inner = walkRawTags(tag.data.subarray(4));
+  const { id, frameCount, tags: inner } = walkSpriteTags(tag.data);
   let label = "";
   const events: unknown[] = [];
   for (const item of inner) {

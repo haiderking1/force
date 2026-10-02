@@ -6,12 +6,13 @@ import { scanGame } from "../scan.ts";
 import type { DiscoverScanArgs } from "./parse.ts";
 
 export type ScanCommandIo = {
+  readonly env: Readonly<Record<string, string | undefined>>;
   readonly stdout: { write(text: string): unknown };
 };
 
 export async function runDiscoverScan(args: DiscoverScanArgs, io: ScanCommandIo): Promise<number> {
   const adapter = getGameAdapter(args.game);
-  const root = args.root ?? adapter.defaultRoot;
+  const root = args.root ?? adapter.defaultRoot(io.env);
   if (root === undefined) {
     throw new DiscoveryError("VALIDATION", "discover scan requires --root");
   }

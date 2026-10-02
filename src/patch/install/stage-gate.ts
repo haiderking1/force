@@ -1,8 +1,5 @@
+import { isRecord } from "../../shared/validation/is-record.ts";
 import { PatchError } from "../errors.ts";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 export function assertStageFontComplete(manifest: unknown): void {
   if (!isRecord(manifest)) {

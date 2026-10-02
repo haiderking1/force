@@ -1,18 +1,20 @@
-import { expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import { mkdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import path from "node:path";
+import { createTempDirTracker } from "../../testing/temp-dir.ts";
 import { PatchError } from "../errors.ts";
+import { BRUTAL_LEGEND_PROCESS_NAMES } from "../../games/brutal-legend/config.ts";
 import { applyStagedPatch } from "./apply.ts";
 import { createVerifiedBackup } from "./backup.ts";
 import { checksumFiles } from "./checksums.ts";
 import { assertBackupOutsideGame } from "./paths.ts";
 import { restoreFromBackup } from "./restore.ts";
 
+const tempDirs = createTempDirTracker();
+afterEach(() => tempDirs.cleanup());
+
 async function scratch(label: string): Promise<string> {
-  const dir = path.join(tmpdir(), `force-patch-safe-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  await mkdir(dir, { recursive: true });
-  return dir;
+  return tempDirs.create(`force-patch-safe-${label}-`);
 }
 
 test("refuses a backup directory inside the game root", () => {
@@ -48,6 +50,7 @@ test("apply refuses without --confirm and restores checksums after a verified ba
         },
       ],
       confirm: false,
+      processNames: BRUTAL_LEGEND_PROCESS_NAMES,
     }),
   ).rejects.toThrow(/--confirm/);
 
@@ -58,7 +61,7 @@ test("apply refuses without --confirm and restores checksums after a verified ba
     relativePaths: ["Win/Packs/RgS_Faction.~h"],
   });
   await writeFile(path.join(packs, "RgS_Faction.~h"), staged);
-  await restoreFromBackup({ backupDir, confirm: true, gameRoot: game });
+  await restoreFromBackup({ backupDir, confirm: true, gameRoot: game, processNames: BRUTAL_LEGEND_PROCESS_NAMES });
   const restored = new Uint8Array(await Bun.file(path.join(packs, "RgS_Faction.~h")).arrayBuffer());
   expect(restored).toEqual(original);
 });
@@ -85,6 +88,7 @@ test("apply refuses when the installed original hash no longer matches the stage
         },
       ],
       confirm: true,
+      processNames: BRUTAL_LEGEND_PROCESS_NAMES,
     }),
   ).rejects.toBeInstanceOf(PatchError);
 });

@@ -21,6 +21,7 @@ export async function applyStagedPatch(options: {
   readonly backupDir: string;
   readonly files: readonly StagedInstallFile[];
   readonly confirm: boolean;
+  readonly processNames: readonly string[];
 }): Promise<{ readonly backupDir: string; readonly installed: readonly FileChecksum[] }> {
   if (!options.confirm) {
     throw new PatchError("SAFETY", "apply requires an explicit --confirm flag");
@@ -28,7 +29,7 @@ export async function applyStagedPatch(options: {
   if (options.files.length === 0) {
     throw new PatchError("VALIDATION", "apply has no staged files");
   }
-  await assertGameNotRunning();
+  await assertGameNotRunning(options.processNames);
   assertBackupOutsideGame(options.gameRoot, options.backupDir);
 
   const current = await checksumFiles(

@@ -1,4 +1,4 @@
-import { mkdir, writeFile, stat } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { openBuddhaPack } from "../../src/archive/buddha/open.ts";
 import { extractBuddhaEntry } from "../../src/archive/buddha/extract.ts";
@@ -6,11 +6,11 @@ import { payloadPathFromHeader } from "../../src/archive/companion-path.ts";
 import { parseDefineFont3Tag } from "../../src/patch/gfx/font3/parse.ts";
 import { extendEmbeddedFonts } from "../../src/patch/gfx/font3/extend-embedded.ts";
 import { decompressGfx, walkSwfTags } from "../../src/patch/gfx/swf.ts";
-import { stagePackReplacements, assertStagedPackEntries } from "../../src/patch/stage/pack-write.ts";
+import { writeVerifiedPack } from "../../src/patch/stage/write-verified-pack.ts";
 import { sha256Bytes } from "../../src/patch/hash.ts";
-import { BRUTAL_LEGEND_GFX_PACK, BRUTAL_LEGEND_FONTS_GFX_ENTRY } from "../../src/patch/games/brutal-legend/config.ts";
+import { BRUTAL_LEGEND_GFX_PACK, BRUTAL_LEGEND_FONTS_GFX_ENTRY } from "../../src/games/brutal-legend/config.ts";
 import { GAME_TEXT_GLYPH_FIRST, GAME_TEXT_GLYPH_COUNT, EMBEDDED_TEXT_FAMILIES,
-  MIN_EMBEDDED_GLYPHS } from "../../src/patch/games/brutal-legend/embedded-fonts.ts";
+  MIN_EMBEDDED_GLYPHS } from "../../src/games/brutal-legend/rendering/embedded-fonts.ts";
 
 const [root, output, ...extra] = process.argv.slice(2);
 if (!root || !output || extra.length) throw new Error("Usage: stage-embedded-fonts.ts GAME_ROOT NEW_STAGE");
@@ -51,22 +51,7 @@ if (!replacements.some((entry) => entry.identifier === "data/ui/tc_deuce/opt/tc_
   throw new Error("Expected unpatched Deuce tutorial font was not found");
 }
 await mkdir(path.join(out, "packs"));
-const rebuilt = await stagePackReplacements({ headerPath, payloadPath, replacements });
-const stagedHeader = path.join(out, "packs", path.basename(headerPath));
-const stagedPayload = payloadPathFromHeader(stagedHeader);
-await writeFile(stagedHeader, rebuilt.result.header);
-await writeFile(stagedPayload, rebuilt.result.payload);
-await assertStagedPackEntries({ headerPath: stagedHeader, payloadPath: stagedPayload,
-  originalHeaderPath: headerPath, originalPayloadPath: payloadPath, replacements, rebuilt: rebuilt.result });
-const files = [];
-for (const item of [
-  { relativePath: BRUTAL_LEGEND_GFX_PACK, staged: stagedHeader, bytes: rebuilt.result.header, hash: rebuilt.result.originalHeaderSha256 },
-  { relativePath: payloadPathFromHeader(BRUTAL_LEGEND_GFX_PACK), staged: stagedPayload, bytes: rebuilt.result.payload, hash: rebuilt.result.originalPayloadSha256 },
-]) {
-  files.push({ relativePath: item.relativePath, stagedRelativePath: path.relative(out, item.staged),
-    originalSha256: item.hash, originalBytes: (await stat(path.join(gameRoot, item.relativePath))).size,
-    stagedSha256: sha256Bytes(item.bytes), stagedBytes: item.bytes.length });
-}
+const files = await writeVerifiedPack(gameRoot, out, BRUTAL_LEGEND_GFX_PACK, replacements);
 await writeFile(path.join(out, "install-manifest.json"), JSON.stringify({ gameRoot, files,
   fontResourcesVerified: true, fontResources: resources }, null, 2));
 await writeFile(path.join(out, "report.json"), JSON.stringify({ inGameVerified: false,
