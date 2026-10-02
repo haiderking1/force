@@ -26,5 +26,7 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
-  }
+  },
+  "include": ["src/**/*", "scripts/**/*"],
+  "exclude": ["out", "node_modules", ".venv"]
 }

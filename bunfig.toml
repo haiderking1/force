@@ -1,0 +1,4 @@
+[test]
+# Generated trees under out/ hold 13G of artifacts, copied test files, and a
+# Wine prefix whose dosdevices/z: links to /. Prune them during discovery.
+pathIgnorePatterns = ["out/**", "node_modules/**", ".venv/**"]
