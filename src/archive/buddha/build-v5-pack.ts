@@ -3,8 +3,11 @@ import { writeMsbBits, writeU32Be, writeU64Be } from "./bits.ts";
 import {
   BUDDHA_COMPRESS_NONE,
   BUDDHA_COMPRESS_ZLIB,
+  BUDDHA_CONTENT_BITS,
   BUDDHA_ENTRY_SIZE,
+  BUDDHA_EXTRA_CONTENT_BITS,
   BUDDHA_HEADER_PREFIX_SIZE,
+  BUDDHA_RESERVED_BITS,
 } from "./limits.ts";
 
 export type FixtureType = {
@@ -19,6 +22,8 @@ export type FixtureEntry = {
   readonly typeIndex: number;
   readonly bytes: Uint8Array;
   readonly compress: boolean;
+  /** Part of bytes.length recorded in the extra content size field. Defaults to 0. */
+  readonly extraContentSize?: number;
 };
 
 export type BuiltV5Pack = {
@@ -40,7 +45,8 @@ function encodeType(type: FixtureType): Uint8Array {
 }
 
 function encodeEntryRecord(
-  contentSize: number,
+  primaryContentSize: number,
+  extraContentSize: number,
   nameOffset: number,
   payloadOffset: number,
   storedSize: number,
@@ -48,9 +54,10 @@ function encodeEntryRecord(
   compressFlag: number,
 ): Uint8Array {
   const record = new Uint8Array(BUDDHA_ENTRY_SIZE);
-  writeMsbBits(record, contentSize, 0, 0, 24);
+  writeMsbBits(record, primaryContentSize, 0, 0, BUDDHA_CONTENT_BITS);
   writeMsbBits(record, nameOffset, 3, 0, 21);
-  writeMsbBits(record, 0, 5, 5, 19);
+  writeMsbBits(record, extraContentSize, 5, 5, BUDDHA_EXTRA_CONTENT_BITS);
+  writeMsbBits(record, 0, 7, 7, BUDDHA_RESERVED_BITS);
   writeMsbBits(record, payloadOffset, 8, 0, 29);
   writeMsbBits(record, storedSize, 11, 5, 23);
   writeMsbBits(record, typeIndex << 1, 14, 4, 8);
@@ -110,8 +117,13 @@ export function buildV5Pack(
   let payloadCursor = 0;
   entries.forEach((entry, index) => {
     const stored = entry.compress ? new Uint8Array(deflateSync(Buffer.from(entry.bytes))) : entry.bytes;
+    const extraContentSize = entry.extraContentSize ?? 0;
+    if (extraContentSize < 0 || extraContentSize > entry.bytes.length) {
+      throw new RangeError(`Fixture ${entry.name} extra content size ${extraContentSize} is outside 0..${entry.bytes.length}`);
+    }
     const record = encodeEntryRecord(
-      entry.bytes.length,
+      entry.bytes.length - extraContentSize,
+      extraContentSize,
       nameOffsets[index] ?? 0,
       payloadCursor,
       stored.length,

@@ -11,7 +11,8 @@ export const BUDDHA_FORMAT_ID = "buddha-dfpf-v5";
 
 export const BUDDHA_ASSUMPTIONS = [
   "Magic dfpf, big-endian header prefix, 16-byte MSB-packed index records.",
-  "Version 5.0 and 5.1 use the Stacking-style index (content 24, name 21, offset 29, stored 23, type 8>>1, compress low nibble).",
+  "Version 5.0 and 5.1 use the Stacking-style index (content 24, name 21, extra content 18, reserved 1, offset 29, stored 23, type 8>>1, compress low nibble).",
+  "Decoded size is content + extra content. Verified against every entry of every installed PC Brütal Legend pack (71,095 entries, about 70% of zlib entries use extra content). The reserved bit was always 0; its meaning is unknown and writers preserve it.",
   "Compress flag 4 is stored uncompressed. Flag 8 is zlib. Other flags are reported, not decoded.",
   "Entry names come from the header name table. Hashes are not invented when a name is present.",
   "Provenance: layout checked against PC Brütal Legend .~h bytes. DoubleFineTool StackingFileIndex.cs was a research lead (decompiled, no license). gdkchan/BLPT is a different console bit packing and is not implemented. DoubleFine Explorer MPL-2.0 PCK/PKG parsers are other formats.",

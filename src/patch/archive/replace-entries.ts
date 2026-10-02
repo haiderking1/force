@@ -1,10 +1,11 @@
+import { bytesToHex } from "../../shared/encoding/hex.ts";
 import { writeU64Be } from "../../archive/buddha/bits.ts";
 import { decompressBuddhaPayload } from "../../archive/buddha/compression.ts";
 import { BUDDHA_ENTRY_SIZE, BUDDHA_MAX_HEADER_BYTES } from "../../archive/buddha/limits.ts";
 import { parseBuddhaHeader } from "../../archive/buddha/header.ts";
 import { openBuddhaPack } from "../../archive/buddha/open.ts";
 import { payloadPathFromHeader } from "../../archive/companion-path.ts";
-import { readWholeFile } from "../../archive/read-range.ts";
+import { readFileInto, readFileRange, readWholeFile } from "../../archive/read-range.ts";
 import type { ArchiveEntry } from "../../archive/types.ts";
 import { PatchError } from "../errors.ts";
 import { sha256Bytes } from "../hash.ts";
@@ -47,17 +48,24 @@ export type PackReplaceResult = {
   readonly originalPayloadSha256: string;
 };
 
-function recordBytesHex(record: Uint8Array): string {
-  return [...record].map((value) => value.toString(16).padStart(2, "0")).join("");
-}
-
-function readStored(payload: Uint8Array, entry: ArchiveEntry): Uint8Array {
-  if (entry.payloadOffset + entry.storedSize > payload.length) {
+async function readStored(payloadPath: string, payloadLength: number, entry: ArchiveEntry): Promise<Uint8Array> {
+  if (entry.payloadOffset + entry.storedSize > payloadLength) {
     throw new PatchError("RANGE", `${entry.identifier}: stored range exceeds payload`);
   }
-  return payload.subarray(entry.payloadOffset, entry.payloadOffset + entry.storedSize);
+  return (await readFileRange(payloadPath, entry.payloadOffset, entry.storedSize)).bytes;
 }
 
+type PayloadWrite = {
+  readonly identifier: string;
+  readonly offset: number;
+  readonly bytes: Uint8Array;
+  readonly originalOffset: number;
+  readonly originalSize: number;
+  readonly originalSha256: string;
+};
+
+// Packs can be hundreds of megabytes. Plan every replacement from small range
+// reads first, then hold exactly one payload-sized buffer for the result.
 export async function replaceBuddhaEntries(options: {
   readonly headerPath: string;
   readonly payloadPath?: string;
@@ -68,15 +76,17 @@ export async function replaceBuddhaEntries(options: {
   }
   const payloadPath = options.payloadPath ?? payloadPathFromHeader(options.headerPath);
   const headerRead = await readWholeFile(options.headerPath, BUDDHA_MAX_HEADER_BYTES);
-  const payloadRead = await readWholeFile(payloadPath, Number.MAX_SAFE_INTEGER);
   const parsedHeader = parseBuddhaHeader(headerRead.bytes);
   const list = await openBuddhaPack({ headerPath: options.headerPath, payloadPath });
+  if (list.payloadSize === undefined) {
+    throw new PatchError("RANGE", `Payload size of ${payloadPath} is unknown`);
+  }
+  const originalPayloadLength = list.payloadSize;
   const alignment = detectPayloadAlignment(list.entries.map((entry) => entry.payloadOffset));
 
   const header = headerRead.bytes.slice();
-  const payloadCopy = payloadRead.bytes.slice();
-  const payloadChunks: Uint8Array[] = [payloadCopy];
-  let payloadSize = payloadCopy.length;
+  const writes: PayloadWrite[] = [];
+  let payloadSize = originalPayloadLength;
   const infos: ReplacedEntryInfo[] = [];
   const seen = new Set<string>();
 
@@ -103,31 +113,38 @@ export async function replaceBuddhaEntries(options: {
     if (entry.rangeError !== undefined) {
       throw new PatchError("RANGE", `${entry.identifier}: ${entry.rangeError}`);
     }
+    if (entry.extraContentSize !== 0) {
+      // The writer only sets the 24-bit content size. How the game splits a decoded
+      // entry between content and extra content is unknown, so do not guess.
+      throw new PatchError(
+        "ENTRY",
+        `${entry.identifier}: content size is split ${entry.primaryContentSize}+${entry.extraContentSize}; replacing split-size entries is not supported`,
+      );
+    }
     const compression = entry.compression;
     const stored = storeReplacementPayload(replacement.bytes, compression);
-    const originalStored = readStored(payloadRead.bytes, entry);
+    const originalStored = await readStored(payloadPath, originalPayloadLength, entry);
     const originalContent = decompressBuddhaPayload(originalStored, compression, entry.contentSize);
     const originalRecord = header.slice(entry.recordOffset, entry.recordOffset + BUDDHA_ENTRY_SIZE);
     const slotEnd = entrySlotEnd(list.entries, entry.index, parsedHeader.dataFooterOffset);
     // Footer offsets can include alignment padding absent from the physical file,
     // especially after an earlier append. Only existing bytes are writable in place.
-    const available = Math.min(slotEnd, payloadCopy.length) - entry.payloadOffset;
+    const available = Math.min(slotEnd, originalPayloadLength) - entry.payloadOffset;
     const placement = stored.length <= available ? "in-place" : "append";
     const payloadOffset = placement === "in-place" ? entry.payloadOffset : alignUp(payloadSize, alignment);
     if (placement === "append") {
-      if (payloadOffset > payloadSize) {
-        payloadChunks.push(new Uint8Array(payloadOffset - payloadSize));
-        payloadSize = payloadOffset;
-      }
-      payloadChunks.push(stored);
-      payloadSize += stored.length;
-    } else {
-      const region = payloadChunks[0];
-      if (region === undefined) {
-        throw new PatchError("RANGE", "Payload copy is missing");
-      }
-      region.set(stored, payloadOffset);
+      // Alignment gaps stay zero because the result buffer is freshly allocated.
+      payloadSize = payloadOffset + stored.length;
     }
+    const originalStoredSha256 = sha256Bytes(originalStored);
+    writes.push({
+      identifier: entry.identifier,
+      offset: payloadOffset,
+      bytes: stored,
+      originalOffset: entry.payloadOffset,
+      originalSize: entry.storedSize,
+      originalSha256: originalStoredSha256,
+    });
     const nextRecord = patchEntrySizeFields(originalRecord, {
       contentSize: replacement.bytes.length,
       payloadOffset,
@@ -142,15 +159,15 @@ export async function replaceBuddhaEntries(options: {
         payloadOffset: entry.payloadOffset,
         storedSize: entry.storedSize,
         contentSize: entry.contentSize,
-        recordBytes: recordBytesHex(originalRecord),
-        storedSha256: sha256Bytes(originalStored),
+        recordBytes: bytesToHex(originalRecord),
+        storedSha256: originalStoredSha256,
         contentSha256: sha256Bytes(originalContent),
       },
       next: {
         payloadOffset,
         storedSize: stored.length,
         contentSize: replacement.bytes.length,
-        recordBytes: recordBytesHex(nextRecord),
+        recordBytes: bytesToHex(nextRecord),
         storedSha256: sha256Bytes(stored),
         contentSha256: sha256Bytes(replacement.bytes),
       },
@@ -162,10 +179,21 @@ export async function replaceBuddhaEntries(options: {
   writeU64Be(header, 48, dataFooter);
 
   const payload = new Uint8Array(payloadSize);
-  let writeAt = 0;
-  for (const chunk of payloadChunks) {
-    payload.set(chunk, writeAt);
-    writeAt += chunk.length;
+  const readLength = await readFileInto(payloadPath, payload);
+  if (readLength !== originalPayloadLength) {
+    throw new PatchError("RANGE", `Payload ${payloadPath} changed size from ${originalPayloadLength} to ${readLength} during rebuild`);
+  }
+  // Planning and this read are separate snapshots. The recorded originals must
+  // describe the bytes this payload is actually rebuilt from.
+  for (const write of writes) {
+    const current = payload.subarray(write.originalOffset, write.originalOffset + write.originalSize);
+    if (sha256Bytes(current) !== write.originalSha256) {
+      throw new PatchError("RANGE", `${write.identifier}: payload changed between planning and rebuild`);
+    }
+  }
+  const originalPayloadSha256 = sha256Bytes(payload.subarray(0, originalPayloadLength));
+  for (const write of writes) {
+    payload.set(write.bytes, write.offset);
   }
 
   return {
@@ -174,7 +202,7 @@ export async function replaceBuddhaEntries(options: {
     replacements: infos,
     alignment,
     originalHeaderSha256: sha256Bytes(headerRead.bytes),
-    originalPayloadSha256: sha256Bytes(payloadRead.bytes),
+    originalPayloadSha256,
   };
 }
 

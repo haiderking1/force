@@ -1,10 +1,11 @@
+import { bytesToHex } from "../../shared/encoding/hex.ts";
 import { readMsbBits } from "../../archive/buddha/bits.ts";
 import {
   BUDDHA_CONTENT_BITS,
   BUDDHA_ENTRY_SIZE,
+  BUDDHA_EXTENSION_BITS,
   BUDDHA_PAYLOAD_OFFSET_BITS,
   BUDDHA_STORED_SIZE_BITS,
-  BUDDHA_UNKNOWN_BITS,
 } from "../../archive/buddha/limits.ts";
 import { parseBuddhaHeader } from "../../archive/buddha/header.ts";
 import type { ArchiveEntry, ArchiveList } from "../../archive/types.ts";
@@ -19,12 +20,8 @@ export type UntouchedEntryCheck = {
   readonly payloadOffset: number;
   readonly storedSha256: string;
   readonly recordBytes: string;
-  readonly unknownBits: number;
+  readonly extensionBits: number;
 };
-
-function recordHex(record: Uint8Array): string {
-  return [...record].map((value) => value.toString(16).padStart(2, "0")).join("");
-}
 
 export function collectUntouchedEntries(
   list: ArchiveList,
@@ -46,8 +43,8 @@ export function collectUntouchedEntries(
       index: entry.index,
       payloadOffset: entry.payloadOffset,
       storedSha256: sha256Bytes(payload.subarray(entry.payloadOffset, entry.payloadOffset + entry.storedSize)),
-      recordBytes: recordHex(record),
-      unknownBits: readMsbBits(record, 5, 5, BUDDHA_UNKNOWN_BITS),
+      recordBytes: bytesToHex(record),
+      extensionBits: readMsbBits(record, 5, 5, BUDDHA_EXTENSION_BITS),
     });
   }
   return checks;
@@ -75,7 +72,7 @@ export function assertUntouchedEntriesMatch(
       left.payloadOffset !== right.payloadOffset ||
       left.storedSha256 !== right.storedSha256 ||
       left.recordBytes !== right.recordBytes ||
-      left.unknownBits !== right.unknownBits
+      left.extensionBits !== right.extensionBits
     ) {
       throw new PatchError(
         "ROUNDTRIP",
@@ -88,21 +85,21 @@ export function assertUntouchedEntriesMatch(
 export function replacedEntryPreservedBits(
   originalRecord: Uint8Array,
   nextRecord: Uint8Array,
-): { readonly unknownBits: number } {
-  const originalUnknown = readMsbBits(originalRecord, 5, 5, BUDDHA_UNKNOWN_BITS);
-  const nextUnknown = readMsbBits(nextRecord, 5, 5, BUDDHA_UNKNOWN_BITS);
-  if (originalUnknown !== nextUnknown) {
-    throw new PatchError("ROUNDTRIP", "Replacement cleared or changed unknown index bits");
+): { readonly extensionBits: number } {
+  const originalExtension = readMsbBits(originalRecord, 5, 5, BUDDHA_EXTENSION_BITS);
+  const nextExtension = readMsbBits(nextRecord, 5, 5, BUDDHA_EXTENSION_BITS);
+  if (originalExtension !== nextExtension) {
+    throw new PatchError("ROUNDTRIP", "Replacement changed the extra content size or reserved index bit");
   }
   const restored = patchEntrySizeFields(nextRecord, {
     contentSize: readMsbBits(originalRecord, 0, 0, BUDDHA_CONTENT_BITS),
     payloadOffset: readMsbBits(originalRecord, 8, 0, BUDDHA_PAYLOAD_OFFSET_BITS),
     storedSize: readMsbBits(originalRecord, 11, 5, BUDDHA_STORED_SIZE_BITS),
   });
-  if (recordHex(restored) !== recordHex(originalRecord)) {
+  if (bytesToHex(restored) !== bytesToHex(originalRecord)) {
     throw new PatchError("ROUNDTRIP", "Replacement changed name, type, compress, or other preserved index bits");
   }
-  return { unknownBits: nextUnknown };
+  return { extensionBits: nextExtension };
 }
 
 export function headerOutsideReplacementFieldsEqual(

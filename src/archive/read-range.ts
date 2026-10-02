@@ -35,6 +35,27 @@ export async function readFileRange(filePath: string, offset: number, size: numb
   }
 }
 
+export async function readFileInto(filePath: string, target: Uint8Array): Promise<number> {
+  const handle = await open(filePath, "r");
+  try {
+    const stat = await handle.stat();
+    if (stat.size > target.length) {
+      throw new ArchiveError("LIMIT", `File ${filePath} is ${stat.size} bytes, over the ${target.length} byte target`);
+    }
+    let filled = 0;
+    while (filled < stat.size) {
+      const result = await handle.read(target, filled, stat.size - filled, filled);
+      if (result.bytesRead === 0) {
+        throw new ArchiveError("RANGE", `Short read of ${filePath}: got ${filled}, wanted ${stat.size}`);
+      }
+      filled += result.bytesRead;
+    }
+    return stat.size;
+  } finally {
+    await handle.close();
+  }
+}
+
 export async function readWholeFile(filePath: string, maxBytes: number): Promise<RangeRead> {
   const handle = await open(filePath, "r");
   try {

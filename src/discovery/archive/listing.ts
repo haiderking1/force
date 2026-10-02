@@ -22,6 +22,8 @@ export type ArchiveListingJson = {
     readonly payloadOffset: number;
     readonly storedSize: number;
     readonly contentSize: number;
+    readonly primaryContentSize: number;
+    readonly extraContentSize: number;
     readonly compression: string;
     readonly recordOffset: number;
     readonly rangeError: string | undefined;
@@ -51,6 +53,8 @@ export function listingJson(list: ArchiveList): ArchiveListingJson {
       payloadOffset: entry.payloadOffset,
       storedSize: entry.storedSize,
       contentSize: entry.contentSize,
+      primaryContentSize: entry.primaryContentSize,
+      extraContentSize: entry.extraContentSize,
       compression: entry.compression,
       recordOffset: entry.recordOffset,
       rangeError: entry.rangeError,

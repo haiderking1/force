@@ -6,7 +6,10 @@ export type ArchiveEntry = {
   readonly typeIndex: number;
   readonly payloadOffset: number;
   readonly storedSize: number;
+  /** Decoded length: primaryContentSize + extraContentSize. */
   readonly contentSize: number;
+  readonly primaryContentSize: number;
+  readonly extraContentSize: number;
   readonly compression: ArchiveCompression;
   readonly nameTableOffset: number;
   readonly recordOffset: number;

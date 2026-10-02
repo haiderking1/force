@@ -25,7 +25,6 @@ export async function stagePackReplacements(options: {
     payloadPath: options.payloadPath,
   });
   const originalHeader = new Uint8Array(await Bun.file(options.headerPath).arrayBuffer());
-  const originalPayload = new Uint8Array(await Bun.file(options.payloadPath).arrayBuffer());
   const replacedEntries = options.replacements.map((replacement) => {
     const entry = list.entries.find((item) => item.identifier === replacement.identifier);
     if (entry === undefined) {
@@ -33,8 +32,7 @@ export async function stagePackReplacements(options: {
     }
     return entry;
   });
-  const replacedIndexes = new Set(replacedEntries.map((entry) => entry.index));
-  const originalUntouched = collectUntouchedEntries(list, originalHeader, originalPayload, replacedIndexes);
+  // Untouched payload entries are compared against the written stage in assertStagedPackEntries.
   const rebuilt = await replaceBuddhaEntries({
     headerPath: options.headerPath,
     payloadPath: options.payloadPath,

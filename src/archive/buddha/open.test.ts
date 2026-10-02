@@ -1,18 +1,21 @@
-import { expect, test } from "bun:test";
-import { mkdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { afterEach, expect, test } from "bun:test";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createTempDirTracker } from "../../testing/temp-dir.ts";
 import { ArchiveError } from "../errors.ts";
 import { safeEntryRelativePath } from "../path-safety.ts";
 import { writeMsbBits } from "./bits.ts";
 import { buildV5Pack } from "./build-v5-pack.ts";
 import { extractBuddhaEntry } from "./extract.ts";
 import { parseBuddhaHeader } from "./header.ts";
+import { BUDDHA_MAX_UNCOMPRESSED } from "./limits.ts";
 import { openBuddhaPack } from "./open.ts";
 
+const tempDirs = createTempDirTracker();
+afterEach(() => tempDirs.cleanup());
+
 async function writePack(label: string, pack: ReturnType<typeof buildV5Pack>): Promise<{ header: string; payload: string }> {
-  const dir = path.join(tmpdir(), `force-pack-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  await mkdir(dir, { recursive: true });
+  const dir = await tempDirs.create(`force-pack-${label}-`);
   const header = path.join(dir, "Sample.~h");
   const payload = path.join(dir, "Sample.~p");
   await writeFile(header, pack.header);
@@ -41,9 +44,43 @@ test("lists and extracts a zlib entry against the rebuilt payload", async () => 
   expect(extracted.decompressed).toBe(true);
 });
 
+test("decodes zlib entries whose size is split into content and extra content", async () => {
+  const body = new TextEncoder().encode("mesh header|vertex data that lives in the extra part");
+  const pack = buildV5Pack(
+    [{ name: "Mesh" }],
+    [{ name: "characters/split.mesh", typeIndex: 0, bytes: body, compress: true, extraContentSize: 41 }],
+  );
+  const files = await writePack("split", pack);
+  const list = await openBuddhaPack({ headerPath: files.header, payloadPath: files.payload });
+  const entry = list.entries[0];
+  expect(entry?.primaryContentSize).toBe(body.length - 41);
+  expect(entry?.extraContentSize).toBe(41);
+  expect(entry?.contentSize).toBe(body.length);
+  const extracted = await extractBuddhaEntry(list, "characters/split.mesh");
+  expect(extracted.bytes).toEqual(body);
+});
+
+test("decodes split-size entries above 16 MiB up to the largest representable size", async () => {
+  expect(BUDDHA_MAX_UNCOMPRESSED).toBe(17_039_358);
+  for (const [label, total, extra] of [
+    ["just-over-16mib", 16 * 1024 * 1024 + 1, 2],
+    ["maximum", BUDDHA_MAX_UNCOMPRESSED, 2 ** 18 - 1],
+  ] as const) {
+    const body = new Uint8Array(total);
+    body[0] = 1;
+    body[total - 1] = 2;
+    const pack = buildV5Pack([{ name: "Mesh" }], [{ name: label, typeIndex: 0, bytes: body, compress: true, extraContentSize: extra }]);
+    const files = await writePack(label, pack);
+    const list = await openBuddhaPack({ headerPath: files.header, payloadPath: files.payload });
+    expect(list.entries[0]?.contentSize).toBe(total);
+    const extracted = await extractBuddhaEntry(list, label);
+    expect(extracted.bytes.length).toBe(total);
+    expect(extracted.bytes[total - 1]).toBe(2);
+  }
+});
+
 test("rejects truncated headers, bad magic, and unsupported versions", async () => {
-  const dir = path.join(tmpdir(), `force-pack-bad-${Date.now()}`);
-  await mkdir(dir, { recursive: true });
+  const dir = await tempDirs.create("force-pack-bad-");
   const shortPath = path.join(dir, "short.~h");
   await writeFile(shortPath, "dfpf");
   await expect(openBuddhaPack({ headerPath: shortPath })).rejects.toBeInstanceOf(ArchiveError);

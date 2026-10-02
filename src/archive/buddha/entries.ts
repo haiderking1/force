@@ -7,11 +7,11 @@ import {
   BUDDHA_COMPRESS_ZLIB,
   BUDDHA_CONTENT_BITS,
   BUDDHA_ENTRY_SIZE,
+  BUDDHA_EXTRA_CONTENT_BITS,
   BUDDHA_MAX_ENTRY_NAME,
   BUDDHA_NAME_OFFSET_BITS,
   BUDDHA_PAYLOAD_OFFSET_BITS,
   BUDDHA_STORED_SIZE_BITS,
-  BUDDHA_UNKNOWN_BITS,
 } from "./limits.ts";
 
 function compressionFromFlag(flag: number): ArchiveCompression {
@@ -51,9 +51,9 @@ export function parseBuddhaEntries(
     if (record.length !== BUDDHA_ENTRY_SIZE) {
       throw new ArchiveError("BOUNDS", `File index record ${index} is truncated`);
     }
-    const contentSize = readMsbBits(record, 0, 0, BUDDHA_CONTENT_BITS);
+    const primaryContentSize = readMsbBits(record, 0, 0, BUDDHA_CONTENT_BITS);
     const nameTableOffset = readMsbBits(record, 3, 0, BUDDHA_NAME_OFFSET_BITS);
-    readMsbBits(record, 5, 5, BUDDHA_UNKNOWN_BITS);
+    const extraContentSize = readMsbBits(record, 5, 5, BUDDHA_EXTRA_CONTENT_BITS);
     const payloadOffset = readMsbBits(record, 8, 0, BUDDHA_PAYLOAD_OFFSET_BITS);
     const storedSize = readMsbBits(record, 11, 5, BUDDHA_STORED_SIZE_BITS);
     const typeRaw = readMsbBits(record, 14, 4, 8);
@@ -78,7 +78,9 @@ export function parseBuddhaEntries(
       typeIndex,
       payloadOffset,
       storedSize,
-      contentSize,
+      contentSize: primaryContentSize + extraContentSize,
+      primaryContentSize,
+      extraContentSize,
       compression: compressionFromFlag(compressFlag),
       nameTableOffset,
       recordOffset,

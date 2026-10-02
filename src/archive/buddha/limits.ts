@@ -9,12 +9,17 @@ export const BUDDHA_MAX_FILE_COUNT = 200_000;
 export const BUDDHA_MAX_TYPE_COUNT = 1024;
 export const BUDDHA_MAX_TYPE_NAME = 256;
 export const BUDDHA_MAX_ENTRY_NAME = 1024;
-export const BUDDHA_MAX_UNCOMPRESSED = 16 * 1024 * 1024;
 export const BUDDHA_MAX_STORED = 8 * 1024 * 1024;
 
 export const BUDDHA_CONTENT_BITS = 24;
 export const BUDDHA_NAME_OFFSET_BITS = 21;
-export const BUDDHA_UNKNOWN_BITS = 19;
+// Record bits 45-63: an extra content size, then one reserved bit. The decoded
+// length is the 24-bit content size plus the extra size.
+export const BUDDHA_EXTRA_CONTENT_BITS = 18;
+export const BUDDHA_RESERVED_BITS = 1;
+export const BUDDHA_EXTENSION_BITS = BUDDHA_EXTRA_CONTENT_BITS + BUDDHA_RESERVED_BITS;
+// Largest decoded size the index can describe: (2^24 - 1) + (2^18 - 1).
+export const BUDDHA_MAX_UNCOMPRESSED = (2 ** BUDDHA_CONTENT_BITS - 1) + (2 ** BUDDHA_EXTRA_CONTENT_BITS - 1);
 export const BUDDHA_PAYLOAD_OFFSET_BITS = 29;
 export const BUDDHA_STORED_SIZE_BITS = 23;
 

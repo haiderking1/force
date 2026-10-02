@@ -1,13 +1,13 @@
-import { expect, test } from "bun:test";
-import { mkdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { afterEach, expect, test } from "bun:test";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createTempDirTracker } from "../../testing/temp-dir.ts";
 import { writeMsbBits, writeU64Be } from "../../archive/buddha/bits.ts";
 import { buildV5Pack } from "../../archive/buddha/build-v5-pack.ts";
 import { extractBuddhaEntry } from "../../archive/buddha/extract.ts";
 import { parseBuddhaHeader } from "../../archive/buddha/header.ts";
 import { openBuddhaPack } from "../../archive/buddha/open.ts";
-import { BUDDHA_ENTRY_SIZE, BUDDHA_UNKNOWN_BITS } from "../../archive/buddha/limits.ts";
+import { BUDDHA_ENTRY_SIZE, BUDDHA_RESERVED_BITS } from "../../archive/buddha/limits.ts";
 import { PatchError } from "../errors.ts";
 import { sha256Bytes } from "../hash.ts";
 import {
@@ -17,6 +17,9 @@ import {
   replacedEntryPreservedBits,
 } from "./compare.ts";
 import { replaceBuddhaEntries } from "./replace-entries.ts";
+
+const tempDirs = createTempDirTracker();
+afterEach(() => tempDirs.cleanup());
 
 function resource(body: string): Uint8Array {
   const encoded = new TextEncoder().encode(body);
@@ -33,8 +36,7 @@ async function writePack(
   label: string,
   pack: ReturnType<typeof buildV5Pack>,
 ): Promise<{ header: string; payload: string }> {
-  const dir = path.join(tmpdir(), `force-patch-pack-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  await mkdir(dir, { recursive: true });
+  const dir = await tempDirs.create(`force-patch-pack-${label}-`);
   const header = path.join(dir, "Sample.~h");
   const payload = path.join(dir, "Sample.~p");
   await writeFile(header, pack.header);
@@ -42,7 +44,7 @@ async function writePack(
   return { header, payload };
 }
 
-test("in-place replacement preserves unknown bits and untouched payload hashes", async () => {
+test("in-place replacement preserves the reserved bit and untouched payload hashes", async () => {
   const keep = new Uint8Array(64);
   keep.fill(7);
   const table = resource('1StringTable{LineCodeData={MENU001TEXT=LineCodeData{Text="Hi";VolumeDB=0;SoundCue=;};};}');
@@ -55,7 +57,7 @@ test("in-place replacement preserves unknown bits and untouched payload hashes",
   );
   const headerParsed = parseBuddhaHeader(pack.header);
   const record = pack.header.subarray(headerParsed.fileIndexOffset + BUDDHA_ENTRY_SIZE, headerParsed.fileIndexOffset + 32);
-  writeMsbBits(record, 0x1abcd, 5, 5, BUDDHA_UNKNOWN_BITS);
+  writeMsbBits(record, 1, 7, 7, BUDDHA_RESERVED_BITS);
   const files = await writePack("inplace", pack);
   await writeFile(files.header, pack.header);
 
@@ -140,6 +142,21 @@ test("last-entry growth cannot write into footer padding beyond the physical pay
   await writeFile(files.payload, result.payload);
   const list = await openBuddhaPack({ headerPath: files.header, payloadPath: files.payload });
   expect((await extractBuddhaEntry(list, "last")).bytes).toEqual(replacement);
+});
+
+test("refuses to replace an entry whose content size is split", async () => {
+  const pack = buildV5Pack(
+    [{ name: "Mesh" }],
+    [{ name: "split", typeIndex: 0, bytes: new Uint8Array(64).fill(3), compress: true, extraContentSize: 16 }],
+  );
+  const files = await writePack("split-size", pack);
+  const rebuild = replaceBuddhaEntries({
+    headerPath: files.header,
+    payloadPath: files.payload,
+    replacements: [{ identifier: "split", bytes: new Uint8Array(64).fill(4) }],
+  });
+  await expect(rebuild).rejects.toBeInstanceOf(PatchError);
+  await expect(rebuild).rejects.toThrow("split 48+16");
 });
 
 test("rejects a missing entry and a stored-size overflow", async () => {
