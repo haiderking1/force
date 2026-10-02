@@ -1,6 +1,6 @@
 import { deflateSync } from "node:zlib";
 import { PatchError } from "../errors.ts";
-import { decompressGfx, u16LeBytes, u32LeBytes, walkSwfTags, writeU32Le, type SwfTag } from "./swf.ts";
+import { decompressGfx, u16LeBytes, u32LeBytes, walkSwfTags, writeU32Le } from "./swf.ts";
 
 export function encodeSwfTag(type: number, data: Uint8Array): Uint8Array {
   if (type < 0 || type > 0x3ff) {
@@ -73,8 +73,4 @@ export function rebuildGfxFile(
   out.set(header, 0);
   out.set(nextBody, 8);
   return out;
-}
-
-export function font3TagsOf(body: Uint8Array): readonly SwfTag[] {
-  return walkSwfTags(body).tags.filter((tag) => tag.type === 75);
 }

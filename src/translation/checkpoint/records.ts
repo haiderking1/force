@@ -1,7 +1,7 @@
 import { TranslationError } from "../errors.ts";
 import { isRecord } from "../unknown.ts";
 import type { CheckpointIdentity, CorpusItem, CorpusSourceMapping } from "../corpus/types.ts";
-import { CHECKPOINT_SCHEMA_VERSION, type StoredBatchFailure, type StoredBatchSuccess } from "./types.ts";
+import { CHECKPOINT_SCHEMA_VERSION, type StoredBatchSuccess } from "./types.ts";
 
 export function parseStoredBatchSuccess(value: unknown): StoredBatchSuccess {
   if (!isRecord(value)) {
@@ -27,34 +27,6 @@ export function parseStoredBatchSuccess(value: unknown): StoredBatchSuccess {
     identityHash: value.identityHash,
     items,
     translations,
-  };
-}
-
-export function parseStoredBatchFailure(value: unknown): StoredBatchFailure {
-  if (!isRecord(value)) {
-    throw new TranslationError("VALIDATION", "Checkpoint failure must be a JSON object");
-  }
-  if (value.schemaVersion !== CHECKPOINT_SCHEMA_VERSION) {
-    throw new TranslationError("VALIDATION", "Checkpoint failure has an incompatible schema");
-  }
-  if (typeof value.batchIndex !== "number" || !Number.isSafeInteger(value.batchIndex) || value.batchIndex < 0) {
-    throw new TranslationError("VALIDATION", "Checkpoint failure index is invalid");
-  }
-  if (typeof value.identityHash !== "string" || value.identityHash.length === 0) {
-    throw new TranslationError("VALIDATION", "Checkpoint failure is missing identityHash");
-  }
-  if (!Array.isArray(value.itemIds) || value.itemIds.some((id) => typeof id !== "string")) {
-    throw new TranslationError("VALIDATION", "Checkpoint failure itemIds must be strings");
-  }
-  if (!isRecord(value.error) || typeof value.error.code !== "string" || typeof value.error.message !== "string") {
-    throw new TranslationError("VALIDATION", "Checkpoint failure is missing error details");
-  }
-  return {
-    schemaVersion: 1,
-    batchIndex: value.batchIndex,
-    identityHash: value.identityHash,
-    itemIds: value.itemIds,
-    error: { code: value.error.code, message: value.error.message },
   };
 }
 

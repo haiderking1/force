@@ -8,7 +8,6 @@ export const JEV_CONTRACT_SOURCES = [
 export const JEV_DEFAULT_BASE_URL = "https://api.typesafe.ai";
 export const JEV_EVALUATE_PATH = "/v1/systemone";
 export const JEV_DEFAULT_MODEL = "jev-latest";
-export const JEV_PINNED_MODEL_DOCUMENTED = "jev-1.13.0";
 export const JEV_QUESTION_SET_VERSION = "force-discovery-roles-v1";
 
 export type JevNoulCriteria = {

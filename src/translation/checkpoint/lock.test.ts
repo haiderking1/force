@@ -1,11 +1,14 @@
-import { expect, test } from "bun:test";
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { afterEach, expect, test } from "bun:test";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createTempDirTracker } from "../../testing/temp-dir.ts";
 import { acquireJobLock, isPidAlive, releaseJobLock } from "./lock.ts";
 
+const tempDirs = createTempDirTracker();
+afterEach(() => tempDirs.cleanup());
+
 async function lockPath(): Promise<string> {
-  const dir = await mkdtemp(path.join(tmpdir(), "force-lock-"));
+  const dir = await tempDirs.create("force-lock-");
   return path.join(dir, "lock.json");
 }
 

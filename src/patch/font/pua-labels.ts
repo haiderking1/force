@@ -47,10 +47,6 @@ function nextPua(used: boolean[]): number {
   return PUA_FIRST + index;
 }
 
-function isSpaceToken(text: string): boolean {
-  return text === " " || text === "\u00a0";
-}
-
 function unitKey(token: string, direction: TokenDirection, outline: GlyphOutline, advance: number): string {
   return JSON.stringify({
     token,
@@ -149,9 +145,3 @@ export function planPuaLabels(
   glyphs.sort((left, right) => left.code - right.code);
   return { scale, upem, maxQuadError, labels: encodedLabels, glyphs, mapping };
 }
-
-export function encodedLabelById(plan: PuaLabelPlan): Map<string, EncodedPuaLabel> {
-  return new Map(plan.labels.map((label) => [label.id, label]));
-}
-
-export { isSpaceToken };

@@ -1,3 +1,4 @@
+import { sha256Bytes } from "../../../src/shared/crypto/sha256.ts";
 import path from "node:path";
 import { redactText, secretsFromApiKey } from "../../../src/translation/diagnostics.ts";
 import { mkdir } from "node:fs/promises";
@@ -24,7 +25,7 @@ async function main(): Promise<void> {
       throw new Error("Smoke-test inputs must be PNG images below 4 MiB");
     }
     const id = String.fromCharCode(65 + index);
-    inputs.push({ id, path: path.resolve(file), sha256: new Bun.CryptoHasher("sha256").update(bytes).digest("hex") });
+    inputs.push({ id, path: path.resolve(file), sha256: sha256Bytes(bytes) });
     content.push({ type: "text", text: "Image id: " + JSON.stringify(id) });
     content.push({ type: "image_url", image_url: { url: "data:image/png;base64," + Buffer.from(bytes).toString("base64") } });
   }

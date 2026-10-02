@@ -12,7 +12,6 @@ class Template:
         self.proof = read_image(prepared / (self.id + "-proof.png"))
         self.alpha = read_image(prepared / (self.id + "-alpha.png"), cv2.IMREAD_GRAYSCALE)
         self.layer = read_image(prepared / (self.id + "-lettering.png"), cv2.IMREAD_UNCHANGED)
-        self.region = polygon_mask(self.reference.shape, spec["erasePolygon"])
         mask = polygon_mask(self.reference.shape, spec["trackingPolygon"])
         self.keys, self.descriptors = sift.detectAndCompute(cv2.cvtColor(self.reference, cv2.COLOR_BGR2GRAY), mask)
         if self.descriptors is None:

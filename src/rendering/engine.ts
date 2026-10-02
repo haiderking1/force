@@ -52,7 +52,6 @@ export class LayoutEngine {
     const bytes =
       typeof fontSource === "string" ? new Uint8Array(readFileSync(fontSource)) : fontSource;
     const shaper = Shaper.open(bytes, options);
-    const lineUnits = fontLineUnits(bytes);
     const engine = new LayoutEngine(shaper, bytes);
     return { engine, shaper };
   }

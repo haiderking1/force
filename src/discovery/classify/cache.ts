@@ -1,17 +1,15 @@
-import { createHash } from "node:crypto";
+import { sha256Json } from "../../shared/crypto/sha256.ts";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { JevEvaluateResult } from "./client.ts";
 import { JEV_QUESTION_SET_VERSION } from "./contract.ts";
 
 export function classificationCacheKey(model: string, evidenceHash: string): string {
-  return createHash("sha256")
-    .update(JSON.stringify({ model, questionSetVersion: JEV_QUESTION_SET_VERSION, evidenceHash }))
-    .digest("hex");
+  return sha256Json({ model, questionSetVersion: JEV_QUESTION_SET_VERSION, evidenceHash });
 }
 
 export function evidenceHash(state: unknown): string {
-  return createHash("sha256").update(JSON.stringify(state)).digest("hex");
+  return sha256Json(state);
 }
 
 function isFiniteUnit(value: unknown): value is number {

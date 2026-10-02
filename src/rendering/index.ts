@@ -5,7 +5,7 @@ export * from "./font/outline.ts";
 export * from "./font/shaper.ts";
 export * from "./unicode/utf8.ts";
 export * from "./unicode/categories.ts";
-export * from "./unicode/graphemes.ts";
+export { splitGraphemes, graphemeCount } from "./unicode/graphemes.ts";
 export * from "./unicode/line-break.ts";
 export * from "./unicode/bidi.ts";
 export * from "./layout/profile.ts";

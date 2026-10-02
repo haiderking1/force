@@ -20,7 +20,3 @@ export function graphemeCount(text: string): number {
   }
   return count;
 }
-
-export function isSurrogatePair(lead: number, trail: number): boolean {
-  return lead >= 0xd800 && lead <= 0xdbff && trail >= 0xdc00 && trail <= 0xdfff;
-}

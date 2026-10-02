@@ -15,14 +15,6 @@ export function archiveFor(record: InventoryRecord, records: readonly InventoryR
   };
 }
 
-export function evidenceById(evidence: readonly ResourceEvidence[]): Map<string, ResourceEvidence> {
-  const map = new Map<string, ResourceEvidence>();
-  for (const item of evidence) {
-    map.set(item.resourceId, item);
-  }
-  return map;
-}
-
 export function emptyEvidence(record: InventoryRecord): ResourceEvidence {
   return {
     resourceId: record.id,

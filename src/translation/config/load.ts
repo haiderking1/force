@@ -1,3 +1,6 @@
+import { parseBoundedInt } from "../../shared/config/bounded-integer.ts";
+import { readOptional } from "../../shared/config/optional-string.ts";
+import { parseBaseUrl } from "../../shared/config/url.ts";
 import { CLINE_MODEL, CLINE_PROVIDER } from "../providers/cline/contract.ts";
 import { CLINE_BASE_URL, CLINE_DEFAULTS } from "../providers/cline-common/contract.ts";
 import { TranslationError } from "../errors.ts";
@@ -36,7 +39,12 @@ export function loadTranslationConfig(
 
   const providerRaw = readOptional(env[TRANSLATION_ENV.PROVIDER]) ?? CLINE_FREE_PROVIDER;
   const provider = parseProvider(providerRaw, issues);
-  const baseUrl = parseBaseUrl(readOptional(env[TRANSLATION_ENV.BASE_URL]) ?? CLINE_BASE_URL, issues);
+  const baseUrl = parseBaseUrl(
+    readOptional(env[TRANSLATION_ENV.BASE_URL]) ?? CLINE_BASE_URL,
+    CLINE_BASE_URL,
+    TRANSLATION_ENV.BASE_URL,
+    issues,
+  );
   const defaultModel = provider === CLINE_PASS_PROVIDER
     ? CLINE_PASS_MODEL
     : provider === CLINE_PROVIDER ? CLINE_MODEL : CLINE_FREE_MODEL;
@@ -108,14 +116,6 @@ export function loadTranslationConfig(
   };
 }
 
-function readOptional(value: string | undefined): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  const trimmed = value.trim();
-  return trimmed.length === 0 ? undefined : trimmed;
-}
-
 function parseProvider(value: string, issues: string[]): TranslationProvider {
   for (const provider of TRANSLATION_PROVIDERS) {
     if (provider === value) {
@@ -126,24 +126,6 @@ function parseProvider(value: string, issues: string[]): TranslationProvider {
     `${TRANSLATION_ENV.PROVIDER} must be one of ${TRANSLATION_PROVIDERS.join(", ")}`,
   );
   return CLINE_FREE_PROVIDER;
-}
-
-function parseBaseUrl(value: string, issues: string[]): string {
-  try {
-    const url = new URL(value);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      issues.push(`${TRANSLATION_ENV.BASE_URL} must be an http or https URL`);
-      return CLINE_BASE_URL;
-    }
-    if (url.username.length > 0 || url.password.length > 0) {
-      issues.push(`${TRANSLATION_ENV.BASE_URL} must not include credentials`);
-      return CLINE_BASE_URL;
-    }
-    return `${url.origin}${url.pathname}`.replace(/\/+$/, "");
-  } catch {
-    issues.push(`${TRANSLATION_ENV.BASE_URL} must be an absolute URL`);
-    return CLINE_BASE_URL;
-  }
 }
 
 function parseModel(value: string, issues: string[]): string {
@@ -160,31 +142,6 @@ function parseTargetLanguage(value: string, issues: string[]): string {
     return CLINE_DEFAULTS.targetLanguage;
   }
   return value;
-}
-
-function parseBoundedInt(
-  raw: string | undefined,
-  fallback: number,
-  name: string,
-  min: number,
-  max: number,
-  pattern: RegExp,
-  issues: string[],
-): number {
-  const value = readOptional(raw);
-  if (value === undefined) {
-    return fallback;
-  }
-  if (!pattern.test(value)) {
-    issues.push(`${name} must be an integer`);
-    return fallback;
-  }
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
-    issues.push(`${name} must be between ${min} and ${max}`);
-    return fallback;
-  }
-  return parsed;
 }
 
 function parseTemperature(raw: string | undefined, fallback: number, issues: string[]): number {

@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { writeJson } from "../../shared/fs/write-json.ts";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { DiscoveryError } from "../errors.ts";
 import { parseDiscoveryReport } from "./parse.ts";
@@ -13,8 +14,7 @@ export function defaultClassifiedReportPath(gameId: string): string {
 }
 
 export async function writeReport(filePath: string, report: DiscoveryReport): Promise<void> {
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeJson(filePath, report);
 }
 
 export async function readReport(filePath: string): Promise<DiscoveryReport> {

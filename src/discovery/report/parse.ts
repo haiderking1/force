@@ -1,9 +1,6 @@
+import { isRecord } from "../../shared/validation/is-record.ts";
 import { DiscoveryError } from "../errors.ts";
 import { REPORT_SCHEMA_VERSION, type DiscoveryReport, type RankedResource } from "./types.ts";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function isRankedResource(value: unknown): value is RankedResource {
   if (!isRecord(value)) {

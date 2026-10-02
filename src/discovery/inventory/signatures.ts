@@ -1,8 +1,5 @@
+import { bytesToHex } from "../../shared/encoding/hex.ts";
 import type { FileSignature, KnownSignatureName, ResourceKind } from "./types.ts";
-
-function hexBytes(bytes: Uint8Array, length: number): string {
-  return Array.from(bytes.slice(0, length), (value) => value.toString(16).padStart(2, "0")).join("");
-}
 
 function startsWith(bytes: Uint8Array, magic: readonly number[]): boolean {
   if (bytes.length < magic.length) {
@@ -20,45 +17,45 @@ function asciiStartsWith(bytes: Uint8Array, text: string): boolean {
 
 export function identifySignature(bytes: Uint8Array): FileSignature {
   if (asciiStartsWith(bytes, "dfpf")) {
-    return { name: "dfpf", offset: 0, bytesHex: hexBytes(bytes, 8) };
+    return { name: "dfpf", offset: 0, bytesHex: bytesToHex(bytes.slice(0, 8)) };
   }
   if (asciiStartsWith(bytes, "CFX")) {
-    return { name: "cfx", offset: 0, bytesHex: hexBytes(bytes, 8) };
+    return { name: "cfx", offset: 0, bytesHex: bytesToHex(bytes.slice(0, 8)) };
   }
   if (asciiStartsWith(bytes, "GFX")) {
-    return { name: "gfx", offset: 0, bytesHex: hexBytes(bytes, 8) };
+    return { name: "gfx", offset: 0, bytesHex: bytesToHex(bytes.slice(0, 8)) };
   }
   if (asciiStartsWith(bytes, "CWS")) {
-    return { name: "cws", offset: 0, bytesHex: hexBytes(bytes, 8) };
+    return { name: "cws", offset: 0, bytesHex: bytesToHex(bytes.slice(0, 8)) };
   }
   if (asciiStartsWith(bytes, "FWS")) {
-    return { name: "fws", offset: 0, bytesHex: hexBytes(bytes, 8) };
+    return { name: "fws", offset: 0, bytesHex: bytesToHex(bytes.slice(0, 8)) };
   }
   if (asciiStartsWith(bytes, "ZWS")) {
-    return { name: "zws", offset: 0, bytesHex: hexBytes(bytes, 8) };
+    return { name: "zws", offset: 0, bytesHex: bytesToHex(bytes.slice(0, 8)) };
   }
   if (asciiStartsWith(bytes, "BIK") || asciiStartsWith(bytes, "KB2")) {
-    return { name: "bik", offset: 0, bytesHex: hexBytes(bytes, 4) };
+    return { name: "bik", offset: 0, bytesHex: bytesToHex(bytes.slice(0, 4)) };
   }
   if (asciiStartsWith(bytes, "FSB")) {
-    return { name: "fsb", offset: 0, bytesHex: hexBytes(bytes, 4) };
+    return { name: "fsb", offset: 0, bytesHex: bytesToHex(bytes.slice(0, 4)) };
   }
   if (startsWith(bytes, [0x00, 0x01, 0x00, 0x00, 0x00]) || startsWith(bytes, [0x4f, 0x54, 0x54, 0x4f])) {
-    return { name: bytes[0] === 0x4f ? "otf" : "ttf", offset: 0, bytesHex: hexBytes(bytes, 4) };
+    return { name: bytes[0] === 0x4f ? "otf" : "ttf", offset: 0, bytesHex: bytesToHex(bytes.slice(0, 4)) };
   }
   if (startsWith(bytes, [0x4d, 0x5a])) {
-    return { name: "pe", offset: 0, bytesHex: hexBytes(bytes, 2) };
+    return { name: "pe", offset: 0, bytesHex: bytesToHex(bytes.slice(0, 2)) };
   }
   if (startsWith(bytes, [0x7f, 0x45, 0x4c, 0x46])) {
-    return { name: "elf", offset: 0, bytesHex: hexBytes(bytes, 4) };
+    return { name: "elf", offset: 0, bytesHex: bytesToHex(bytes.slice(0, 4)) };
   }
   if (looksLikeTextHead(bytes)) {
-    return { name: "text", offset: 0, bytesHex: hexBytes(bytes, Math.min(8, bytes.length)) };
+    return { name: "text", offset: 0, bytesHex: bytesToHex(bytes.slice(0, Math.min(8, bytes.length))) };
   }
   return {
     name: "unknown",
     offset: 0,
-    bytesHex: hexBytes(bytes, Math.min(8, bytes.length)),
+    bytesHex: bytesToHex(bytes.slice(0, Math.min(8, bytes.length))),
   };
 }
 

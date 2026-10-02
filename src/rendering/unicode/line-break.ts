@@ -20,7 +20,6 @@ export function findBreakOpportunities(text: string): readonly number[] {
   const opportunities: number[] = [];
   if (text.length === 0) return opportunities;
 
-  let inWord = false;
   let prevCp = 0;
 
   for (let i = 0; i < text.length; ) {
@@ -30,17 +29,10 @@ export function findBreakOpportunities(text: string): readonly number[] {
 
     if (isMandatoryBreak(cp)) {
       opportunities.push(i);
-      inWord = false;
     } else if (cp === 0x0020 || isZeroWidthBreak(cp)) {
       if (!isNonBreakingGlue(prevCp)) {
         opportunities.push(i + step);
       }
-      inWord = false;
-    } else if (isNonBreakingGlue(cp)) {
-      // Prohibit break around glue
-      inWord = true;
-    } else {
-      inWord = true;
     }
 
     prevCp = cp;

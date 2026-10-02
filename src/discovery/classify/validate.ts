@@ -1,11 +1,8 @@
+import { isRecord } from "../../shared/validation/is-record.ts";
 import { DiscoveryError } from "../errors.ts";
 import type { RoleProbabilities } from "../report/types.ts";
 import type { JevAnswer, JevNoulAnswer, JevResponseBody } from "./contract.ts";
 import { ROLE_QUESTION_KEYS } from "./questions.ts";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function finiteUnit(value: unknown, label: string): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {

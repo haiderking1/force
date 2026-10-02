@@ -1,7 +1,7 @@
-import { expect, test } from "bun:test";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { afterEach, expect, test } from "bun:test";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createTempDirTracker } from "../../testing/temp-dir.ts";
 import { itemFileName } from "../checkpoint/paths.ts";
 import { planCorpus } from "../corpus/plan.ts";
 import type { CorpusItem } from "../corpus/types.ts";
@@ -11,6 +11,9 @@ import { completionForItems, itemsFromOutboundBody } from "../http/fixtures/comp
 import { SAME_INPUT_RETRY_LIMIT, SINGLETON_REPAIR_LIMIT } from "../recovery/policy.ts";
 import type { TranslateOptions, TranslateRequest, TranslateResult, TranslationClient } from "../types.ts";
 import { runCorpusJob } from "./run.ts";
+
+const tempDirs = createTempDirTracker();
+afterEach(() => tempDirs.cleanup());
 
 function item(id: string, text: string): CorpusItem {
   return {
@@ -70,7 +73,7 @@ function capture() {
 }
 
 async function tempOut(): Promise<string> {
-  return mkdtemp(path.join(tmpdir(), "force-job-"));
+  return tempDirs.create("force-job-");
 }
 
 test("keeps successful batches after a later failure and resumes only the failed work", async () => {

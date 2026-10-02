@@ -1,3 +1,6 @@
+import { parseBoundedInt } from "../../shared/config/bounded-integer.ts";
+import { readOptional } from "../../shared/config/optional-string.ts";
+import { parseBaseUrl } from "../../shared/config/url.ts";
 import { DiscoveryError } from "../errors.ts";
 import {
   JEV_DEFAULT_BASE_URL,
@@ -43,7 +46,12 @@ export function loadJevConfig(env: EnvRecord, options: LoadJevConfigOptions = {}
   if (requireApiKey && apiKey.length === 0) {
     issues.push(`${JEV_ENV.API_KEY} is required`);
   }
-  const baseUrl = parseBaseUrl(readOptional(env[JEV_ENV.BASE_URL]) ?? JEV_DEFAULT_BASE_URL, issues);
+  const baseUrl = parseBaseUrl(
+    readOptional(env[JEV_ENV.BASE_URL]) ?? JEV_DEFAULT_BASE_URL,
+    JEV_DEFAULT_BASE_URL,
+    JEV_ENV.BASE_URL,
+    issues,
+  );
   const model = parseModel(readOptional(env[JEV_ENV.MODEL]) ?? JEV_DEFAULT_MODEL, issues);
   const maxRetries = parseBoundedInt(
     env[JEV_ENV.MAX_RETRIES],
@@ -78,61 +86,10 @@ export function loadJevConfig(env: EnvRecord, options: LoadJevConfigOptions = {}
   return { apiKey, baseUrl, model, maxRetries, retryBackoffMs, concurrency };
 }
 
-function readOptional(value: string | undefined): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  const trimmed = value.trim();
-  return trimmed.length === 0 ? undefined : trimmed;
-}
-
-function parseBaseUrl(value: string, issues: string[]): string {
-  try {
-    const url = new URL(value);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      issues.push(`${JEV_ENV.BASE_URL} must be an http or https URL`);
-      return JEV_DEFAULT_BASE_URL;
-    }
-    if (url.username.length > 0 || url.password.length > 0) {
-      issues.push(`${JEV_ENV.BASE_URL} must not include credentials`);
-      return JEV_DEFAULT_BASE_URL;
-    }
-    return `${url.origin}${url.pathname}`.replace(/\/+$/, "");
-  } catch {
-    issues.push(`${JEV_ENV.BASE_URL} must be an absolute URL`);
-    return JEV_DEFAULT_BASE_URL;
-  }
-}
-
 function parseModel(value: string, issues: string[]): string {
   if (!MODEL_PATTERN.test(value)) {
     issues.push(`${JEV_ENV.MODEL} must be a non-empty model id without whitespace`);
     return JEV_DEFAULT_MODEL;
   }
   return value;
-}
-
-function parseBoundedInt(
-  raw: string | undefined,
-  fallback: number,
-  name: string,
-  min: number,
-  max: number,
-  pattern: RegExp,
-  issues: string[],
-): number {
-  const value = readOptional(raw);
-  if (value === undefined) {
-    return fallback;
-  }
-  if (!pattern.test(value)) {
-    issues.push(`${name} must be an integer`);
-    return fallback;
-  }
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
-    issues.push(`${name} must be between ${min} and ${max}`);
-    return fallback;
-  }
-  return parsed;
 }

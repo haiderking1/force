@@ -1,8 +1,11 @@
-import { expect, test } from "bun:test";
-import { mkdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { afterEach, expect, test } from "bun:test";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createTempDirTracker } from "../../../testing/temp-dir.ts";
 import { loadExtractedStringTableCorpus, mapExtractedStringTableRecords } from "./load.ts";
+
+const tempDirs = createTempDirTracker();
+afterEach(() => tempDirs.cleanup());
 
 function stringTable(overrides: Record<string, unknown> = {}) {
   return {
@@ -53,8 +56,7 @@ test("maps each StringTable id and skips linked reference rows", () => {
 });
 
 test("loads a JSON file and rejects a StringTable row without text", async () => {
-  const dir = path.join(tmpdir(), `force-extracted-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  await mkdir(dir, { recursive: true });
+  const dir = await tempDirs.create("force-extracted-");
   const filePath = path.join(dir, "strings.json");
   await writeFile(filePath, `${JSON.stringify([stringTable()])}\n`);
   const items = await loadExtractedStringTableCorpus(filePath);

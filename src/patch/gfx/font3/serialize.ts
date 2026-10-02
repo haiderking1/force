@@ -73,7 +73,6 @@ export function serializeDefineFont3Tag(font: DefineFont3Tag): Uint8Array {
   let wideOffsets = font.wideOffsets;
   const offsetCount = font.glyphs.length + 1;
   const tryNarrowTable = offsetCount * 2;
-  const tryWideTable = offsetCount * 4;
   const narrowCodeOffset = tryNarrowTable + shapesSize;
   if (!wideOffsets && narrowCodeOffset > UI16_MAX) {
     wideOffsets = true;

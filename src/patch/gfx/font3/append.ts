@@ -67,11 +67,3 @@ export function appendFont3Glyphs(font: DefineFont3Tag, appended: readonly Font3
     glyphs: nextGlyphs,
   };
 }
-
-export function font3CodeMap(font: DefineFont3Tag): Map<number, Font3Glyph> {
-  const map = new Map<number, Font3Glyph>();
-  for (const glyph of font.glyphs) {
-    map.set(glyph.code, glyph);
-  }
-  return map;
-}

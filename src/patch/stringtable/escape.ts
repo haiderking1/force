@@ -66,7 +66,3 @@ export function decodeBuddhaUnquoted(bytes: Uint8Array, start: number): { readon
   }
   return { text, end: offset };
 }
-
-export function encodeUtf8Exact(text: string): Uint8Array {
-  return encoder.encode(text);
-}

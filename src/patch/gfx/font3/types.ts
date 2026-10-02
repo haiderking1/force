@@ -3,14 +3,10 @@ export const DEFINE_FONT2_TAG = 48;
 export const DEFINE_FONT4_TAG = 91;
 export const DEFINE_FONT_TAG = 10;
 
+// Other flag bits: ShiftJIS 0x40, SmallText 0x20, ANSI 0x10, Italic 0x02, Bold 0x01.
 export const FONT3_FLAG_HAS_LAYOUT = 0x80;
-export const FONT3_FLAG_SHIFT_JIS = 0x40;
-export const FONT3_FLAG_SMALL_TEXT = 0x20;
-export const FONT3_FLAG_ANSI = 0x10;
 export const FONT3_FLAG_WIDE_OFFSETS = 0x08;
 export const FONT3_FLAG_WIDE_CODES = 0x04;
-export const FONT3_FLAG_ITALIC = 0x02;
-export const FONT3_FLAG_BOLD = 0x01;
 
 export type Font3KerningRecord = {
   readonly code1: number;
